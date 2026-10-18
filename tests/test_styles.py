@@ -59,7 +59,7 @@ def test_gather_fixed_first_dedupes_and_ranks():
     result = styles.gather(style, searcher)
     assert [r["url"] for r in result] == ["http://fix/stream", "http://1", "http://2", "http://u"]
     assert result[0]["source"] == "fix" and result[1]["source"] == "keresés"
-    assert calls == ["a", "b"]
+    assert sorted(calls) == ["a", "b"]  # párhuzamosan kérdezzük le
 
 
 def test_gather_stops_at_max(monkeypatch):

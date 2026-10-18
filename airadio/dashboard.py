@@ -232,7 +232,8 @@ class Dashboard:
         self.telnet_port = int(os.environ.get("AIRADIO_TELNET_PORT", "1234"))
         # A stílus-továbbító a Liquidsoap belső harbor-portjára küld (Dockerben is 8005).
         self.relay = relay_mod.Relay(port=int(os.environ.get("LIVE_PORT", "8005")),
-                                     password=os.environ.get("LIVE_PASSWORD", ""))
+                                     password=os.environ.get("LIVE_PASSWORD", ""),
+                                     liq=lambda command: telnet(command, self.telnet_port, timeout=1.0))
         self._catalog: styles_mod.Catalog | None = None
         self._style_lock = threading.Lock()
         self._style_token = 0
@@ -453,6 +454,18 @@ class Dashboard:
             raise ApiError(409, "Nincs kiválasztott stílus")
         self.relay.next()
         return self.relay.state()
+
+    def prefetch_styles(self) -> None:
+        """A kiemelt stílusok állomáslistája előre, hogy az első választás is gyors legyen."""
+        def work() -> None:
+            for style in self.catalog.styles:
+                if style.featured:
+                    try:
+                        self.catalog.stations(style.id)
+                    except (ConnectionError, KeyError) as e:
+                        log.debug("Előtöltés (%s): %s", style.id, e)
+
+        threading.Thread(target=work, name="stilus-elotoltes", daemon=True).start()
 
     def resume_style(self) -> None:
         """Induláskor a legutóbb kiválasztott stílus folytatása."""
@@ -1054,4 +1067,5 @@ def serve(config_path: Path, host: str, port: int, public_port: int = 0) -> None
         threading.Thread(target=public.serve_forever, name="hallgatoi", daemon=True).start()
         log.info("Hallgatói oldal stílusválasztással: http://%s:%d", host, public_port)
     app.resume_style()
+    app.prefetch_styles()
     server.serve_forever()

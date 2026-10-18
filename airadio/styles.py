@@ -13,6 +13,7 @@ import json
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -329,12 +330,18 @@ def gather(style: Style, searcher=stations_mod.search) -> list[dict]:
         add(s.name, s.url, source="fix")
     errors = []
     candidates = []  # (illeszkedés, sorrend a népszerűségi listában, adó)
-    for tag in style.tags:
+
+    def query(tag: str):
         try:
-            rows = searcher(StationSearch(tag=tag, countrycode=style.countrycode, limit=PER_TAG))
+            return searcher(StationSearch(tag=tag, countrycode=style.countrycode, limit=PER_TAG))
         except ConnectionError as e:
             errors.append(str(e))
-            continue
+            return []
+
+    # a címkéket egyszerre kérdezzük le: így a keresés a leglassabb válasz ideje, nem az összegük
+    with ThreadPoolExecutor(max_workers=max(1, len(style.tags))) as pool:
+        results = list(pool.map(query, style.tags))
+    for rows in results:
         for rank, r in enumerate(rows):
             if r.hls or 0 < r.bitrate < MIN_BITRATE:
                 continue

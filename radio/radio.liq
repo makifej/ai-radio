@@ -123,18 +123,34 @@ manual =
     source.fail()
   end
 
+def keresztattunes(a, b) =
+  add(normalize=false, [fade.in(duration=1., b), fade.out(duration=1., a)])
+end
+
 # Stílus: az irányítópult a kiválasztott stílus egyik online rádióját ffmpeg-gel
-# ide továbbítja (airadio/relay.py). Amíg nincs stílus kiválasztva, ez a bemenet
-# üres, és a napszak szerinti zene szól. Állomásváltáskor csak a továbbító cserél
-# forrást, a Liquidsoapot nem kell újraindítani.
-style_in = input.harbor(id="stilus", port=live_port, user="source", password=live_password, buffer=2., max=5., "stilus")
-style = blank.strip(id="stilus_csend", max_blank=15., threshold=-45., track_sensitive=false, style_in)
+# továbbítja ide (airadio/relay.py). Két bemenet váltakozik (A és B): az új adó a
+# szabad bemeneten csatlakozik a háttérben, és csak akkor kapcsolunk át rá, amikor
+# már szól, így váltáskor nincs csend, és a régi addig megy. Hogy melyik bemenet van
+# adásban, azt a továbbító telneten mondja meg (stilus.aktiv a|b|üres); üresnél
+# azonnal a napszak szerinti zene jön, nem kell kivárni a puffert.
+def style_input(m) =
+  s = input.harbor(id="stilus_#{m}", port=live_port, user="source", password=live_password, buffer=1.5, max=4., "stilus_#{m}")
+  blank.strip(id="stilus_#{m}_csend", max_blank=15., threshold=-45., track_sensitive=false, s)
+end
+style_a = style_input("a")
+style_b = style_input("b")
+style_active = ref("")
+server.register(namespace="stilus", description="Melyik stílus-bemenet szóljon (a, b vagy üres).", "aktiv",
+  fun (m) -> begin style_active := string.trim(m); "OK" end)
+server.register(namespace="stilus", description="Kész-e a bemenet (a vagy b).", "kesz",
+  fun (m) -> begin
+    m = string.trim(m)
+    if m == "a" then string(source.is_ready(style_a)) elsif m == "b" then string(source.is_ready(style_b)) else "false" end
+  end)
+style = switch(id="stilus", track_sensitive=false, transitions=[keresztattunes, keresztattunes],
+               [({style_active() == "a"}, style_a), ({style_active() == "b"}, style_b)])
 
 backup = playlist(id="tartalek", mode="randomize", reload_mode="watch", backup_dir)
-
-def keresztattunes(a, b) =
-  add(normalize=false, [fade.in(duration=1.5, b), fade.out(duration=1.5, a)])
-end
 music = fallback(id="zene", track_sensitive=false, transitions=[keresztattunes, keresztattunes, keresztattunes, keresztattunes],
                  [style, manual, relay, backup])
 
