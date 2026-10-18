@@ -37,6 +37,7 @@ set -a
 source "$CONF/secrets.env"
 set +a
 export AIRADIO_CONFIG=$CONF/radio.toml AIRADIO_DATA_DIR=$DATA
+export AIRADIO_LOG_FILE=$DATA/log/liquidsoap.log
 
 sed -e "s/@SOURCE_PASSWORD@/$ICECAST_SOURCE_PASSWORD/" \
     -e "s/@ADMIN_PASSWORD@/$ICECAST_ADMIN_PASSWORD/" \
@@ -66,12 +67,25 @@ news_loop() {
   done
 }
 
+# Az irányítópult az állomáslista alkalmazásakor leállítja a Liquidsoapot; ez a
+# hurok azonnal újraindítja.
+radio_loop() {
+  while true; do
+    [[ -f $AIRADIO_LOG_FILE ]] && mv -f "$AIRADIO_LOG_FILE" "$AIRADIO_LOG_FILE.1"
+    liquidsoap "$APP/radio/radio.liq" || true
+    echo "A Liquidsoap leállt, újraindítás."
+    sleep 1
+  done
+}
+
 icecast2 -c "$CONF/icecast.xml" &
 sleep 1
-liquidsoap "$APP/radio/radio.liq" &
+radio_loop &
 news_loop &
+airadio dashboard --host 0.0.0.0 --port 8080 &
 
 echo "AI Rádió fut: http://localhost:${AIRADIO_PORT:-8010}"
+echo "Irányítópult: http://localhost:${AIRADIO_ADMIN_PORT:-8020}"
 wait -n
 echo "Egy folyamat leállt, a konténer újraindul."
 exit 1

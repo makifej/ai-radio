@@ -34,9 +34,12 @@ class Found:
     bitrate: int
     tags: str
     countrycode: str
+    homepage: str = ""
+    favicon: str = ""
+    votes: int = 0
 
 
-def search(query: StationSearch, limit: int | None = None, timeout: float = 15) -> list[Found]:
+def search(query: StationSearch, limit: int | None = None, timeout: float = 15, name: str = "") -> list[Found]:
     params = {
         "hidebroken": "true",
         "order": "clickcount",
@@ -47,6 +50,8 @@ def search(query: StationSearch, limit: int | None = None, timeout: float = 15) 
         params["tag"] = query.tag
     if query.countrycode:
         params["countrycode"] = query.countrycode
+    if name:
+        params["name"] = name
     path = "/json/stations/search?" + urllib.parse.urlencode(params)
 
     last_error: Exception | None = None
@@ -70,6 +75,9 @@ def search(query: StationSearch, limit: int | None = None, timeout: float = 15) 
             bitrate=int(r.get("bitrate") or 0),
             tags=r.get("tags", ""),
             countrycode=r.get("countrycode", ""),
+            homepage=r.get("homepage", "") or "",
+            favicon=r.get("favicon", "") or "",
+            votes=int(r.get("votes") or 0),
         )
         for r in rows
         if r.get("url_resolved") or r.get("url")

@@ -29,8 +29,9 @@ timedatectl set-timezone Europe/Budapest
 
 echo "== Felhasználó és mappák"
 id airadio >/dev/null 2>&1 || useradd --system --home-dir "$DATA" --shell /usr/sbin/nologin airadio
-install -d -o airadio -g airadio "$DATA" "$DATA"/{news,backup,voices,state,jingles} "$LOGDIR"
-install -d -o root -g airadio -m 750 "$ETC"
+install -d -o airadio -g airadio "$DATA" "$DATA"/{news,backup,voices,state,jingles,log} "$LOGDIR"
+# Az irányítópult (airadio felhasználó) írja a radio.toml-t, ezért a csoport írhat a mappába.
+install -d -o root -g airadio -m 770 "$ETC"
 # A telepítő felhasználó (pl. ubuntu) is olvashassa a beállításokat: `airadio status`.
 if [[ -n ${SUDO_USER:-} && $SUDO_USER != root ]]; then
   usermod -aG airadio "$SUDO_USER"
@@ -48,8 +49,10 @@ ln -sf "$APP/venv/bin/airadio" /usr/local/bin/airadio
 
 echo "== Beállítások"
 if [[ ! -f $ETC/radio.toml ]]; then
-  install -o root -g airadio -m 640 "$REPO/config/radio.example.toml" "$ETC/radio.toml"
+  install -o root -g airadio -m 660 "$REPO/config/radio.example.toml" "$ETC/radio.toml"
 fi
+# korábbi telepítésnél 640 volt; az irányítópultnak írnia kell
+chown root:airadio "$ETC/radio.toml" && chmod 660 "$ETC/radio.toml"
 
 if [[ ! -f $ETC/airadio.env ]]; then
   umask 027
@@ -92,11 +95,14 @@ sudo -u airadio env AIRADIO_CONFIG="$ETC/radio.toml" "$APP/venv/bin/airadio" sta
 
 echo "== Szolgáltatások"
 install -m 644 "$REPO"/deploy/systemd/*.service "$REPO"/deploy/systemd/*.timer /etc/systemd/system/
+install -m 644 "$REPO/deploy/logrotate" /etc/logrotate.d/airadio
 systemctl daemon-reload
 systemctl enable --now airadio-icecast.service
 systemctl enable airadio-radio.service
 systemctl restart airadio-radio.service
 systemctl enable --now airadio-news.timer
+systemctl enable airadio-dashboard.service
+systemctl restart airadio-dashboard.service
 
 cat <<EOF
 
@@ -108,4 +114,6 @@ Még hátravan:
   2. Próba: sudo -u airadio AIRADIO_CONFIG=$ETC/radio.toml airadio news --dry-run
   3. Élő adás (BUTT): szerver $HOST_IP, port $LIVE_PORT, mount /live, felhasználó source,
      jelszó: LIVE_PASSWORD a $ETC/airadio.env fájlból.
+  4. Irányítópult: a saját gépeden  ssh -L 8020:127.0.0.1:8080 ${SUDO_USER:-ubuntu}@$HOST_IP
+     majd böngészőben http://localhost:8020
 EOF

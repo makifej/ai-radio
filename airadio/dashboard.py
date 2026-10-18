@@ -1,0 +1,679 @@
+"""Webes irányítópult: állapot, vezérlés és minden beállítás egy helyen.
+
+Szabványkönyvtári HTTP-szerver JSON API-val; a felület az airadio/web/
+dashboard.html egyetlen fájlja. A Liquidsoappal fájlokon keresztül beszél:
+a status.json-t olvassa, a control.json-ba ír (kézi állomás, hír leállítása),
+állomáslista-változáskor pedig újraindítja (a felügyelő, Docker vagy systemd,
+visszahozza).
+"""
+
+from __future__ import annotations
+
+import base64
+import hmac
+import io
+import json
+import logging
+import mimetypes
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import threading
+import time
+import tomllib
+import urllib.parse
+import urllib.request
+import uuid
+import wave
+from datetime import datetime, timedelta
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+from . import config as config_mod
+from . import history, news, stations, tomlwrite, tts
+
+log = logging.getLogger(__name__)
+
+WEB_DIR = Path(__file__).parent / "web"
+HU_VOICES = ("hu_HU-anna-medium", "hu_HU-berta-medium", "hu_HU-imre-medium")
+AUDIO_EXT = {".mp3", ".ogg", ".oga", ".opus", ".wav", ".flac", ".m4a", ".aac"}
+JINGLES = ("hirek_eleje", "hirek_vege")
+STATUS_STALE_SECONDS = 15
+MAX_JSON = 1024 * 1024
+MAX_UPLOAD = 300 * 1024 * 1024
+NEWS_FILE = re.compile(r"^(hirek|azonnal|archiv)-[0-9-]+\.wav$")
+
+_no_proxy = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+class ApiError(Exception):
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status = status
+
+
+# --- Háttérfeladatok ----------------------------------------------------------------
+
+
+class Jobs:
+    """Hosszabb műveletek (hír, alkalmazás, hangletöltés) háttérszálon, követhető kimenettel."""
+
+    def __init__(self):
+        self._jobs: dict[str, dict] = {}
+        self._lock = threading.Lock()
+
+    def start(self, kind: str, title: str, work) -> dict:
+        with self._lock:
+            for job in self._jobs.values():
+                if job["kind"] == kind and job["status"] == "fut":
+                    return job
+            job = {
+                "id": uuid.uuid4().hex[:10],
+                "kind": kind,
+                "title": title,
+                "status": "fut",
+                "lines": [],
+                "started": datetime.now().isoformat(timespec="seconds"),
+                "finished": None,
+            }
+            self._jobs[job["id"]] = job
+            # csak a legutóbbi 30 marad meg
+            for old in sorted(self._jobs.values(), key=lambda j: j["started"])[:-30]:
+                self._jobs.pop(old["id"], None)
+
+        def emit(line: str) -> None:
+            job["lines"].append(line.rstrip())
+            del job["lines"][:-400]
+
+        def run() -> None:
+            try:
+                ok = work(emit)
+                job["status"] = "kész" if ok else "hiba"
+            except Exception as e:  # a hiba a feladat kimenetében jelenik meg
+                emit(f"HIBA: {e}")
+                job["status"] = "hiba"
+            job["finished"] = datetime.now().isoformat(timespec="seconds")
+
+        threading.Thread(target=run, daemon=True).start()
+        return job
+
+    def get(self, job_id: str) -> dict | None:
+        return self._jobs.get(job_id)
+
+    def recent(self) -> list[dict]:
+        return sorted(self._jobs.values(), key=lambda j: j["started"], reverse=True)
+
+
+def run_command(argv: list[str], emit, env: dict) -> bool:
+    proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+    for line in proc.stdout:
+        emit(line)
+    return proc.wait() == 0
+
+
+def restart_liquidsoap() -> int:
+    """Leállítja a radio.liq-et futtató Liquidsoapot; a felügyelő újraindítja."""
+    killed = 0
+    for proc_dir in Path("/proc").glob("[0-9]*"):
+        try:
+            cmd = (proc_dir / "cmdline").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        if cmd and cmd[0].endswith(b"liquidsoap") and any(c.endswith(b"radio.liq") for c in cmd):
+            try:
+                os.kill(int(proc_dir.name), signal.SIGTERM)
+                killed += 1
+            except (ProcessLookupError, PermissionError):
+                pass
+    return killed
+
+
+# --- Az alkalmazás ---------------------------------------------------------------------
+
+
+class Dashboard:
+    def __init__(self, config_path: Path):
+        self.config_path = config_path
+        self.jobs = Jobs()
+        self.icecast = f"http://127.0.0.1:{os.environ.get('ICECAST_PORT', '8000')}"
+        self.mount = os.environ.get("ICECAST_MOUNT", "radio.mp3")
+        self._speaker = None
+        self._speaker_lock = threading.Lock()
+        self._control_lock = threading.Lock()
+
+    # beállítás
+
+    def cfg(self) -> config_mod.Config:
+        return config_mod.load(self.config_path)
+
+    def raw_config(self) -> dict:
+        with self.config_path.open("rb") as f:
+            return tomllib.load(f)
+
+    def save_config(self, raw: dict) -> dict:
+        try:
+            parsed = config_mod.parse(raw)
+        except (config_mod.ConfigError, KeyError, TypeError, ValueError) as e:
+            raise ApiError(400, f"Hibás beállítás: {e}") from None
+        text = tomlwrite.dumps(raw)
+        tomllib.loads(text)  # biztonsági ellenőrzés: amit kiírunk, az vissza is olvasható
+        if self.config_path.exists():
+            shutil.copyfile(self.config_path, self.config_path.with_suffix(".toml.bak"))
+        tmp = self.config_path.with_suffix(".tmp")
+        tmp.write_text(text)
+        tmp.replace(self.config_path)
+        return {"ok": True, "needs_apply": self._stations_differ(parsed)}
+
+    def _stations_differ(self, cfg: config_mod.Config) -> bool:
+        """Eltér-e a napszakbeosztás vagy a saját állomások a futó stations.json-tól."""
+        try:
+            current = json.loads(cfg.stations_file.read_text())["dayparts"]
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            return True
+        running = {d["name"]: d for d in current}
+        for d in cfg.dayparts:
+            r = running.pop(d.name, None)
+            if r is None or (r["start"], r["stop"]) != (d.start, d.stop):
+                return True
+            urls = [s["url"] for s in r["stations"]]
+            if any(s.url not in urls for s in d.stations):
+                return True
+        return bool(running)
+
+    # állapot
+
+    def status(self) -> dict:
+        cfg = self.cfg()
+        radio = None
+        try:
+            radio = json.loads(cfg.status_file.read_text())
+            radio["stale"] = time.time() - cfg.status_file.stat().st_mtime > STATUS_STALE_SECONDS
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+
+        now = datetime.now()
+        upcoming = None
+        for h in range(1, 25):
+            slot = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=h)
+            if slot.hour in cfg.news.hours:
+                upcoming = {
+                    "slot": slot.isoformat(timespec="minutes"),
+                    "ready": news.bulletin_path(cfg, slot).exists(),
+                }
+                break
+
+        entries = history.BulletinLog(cfg.state_dir / "bulletins.json").entries()
+        return {
+            "now": now.isoformat(timespec="seconds"),
+            "name": cfg.name,
+            "radio": radio,
+            "icecast": self._icecast_stats(),
+            "control": self._read_control(cfg),
+            "news": {
+                "next": upcoming,
+                "last": entries[-1] if entries else None,
+                "hours": sorted(cfg.news.hours),
+            },
+            "dayparts": [
+                {"name": d.name, "start": d.start, "stop": d.stop, "host": d.host} for d in cfg.dayparts
+            ],
+            "model": cfg.model,
+            "api_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
+            "jobs": [self._job_summary(j) for j in self.jobs.recent()[:5]],
+        }
+
+    def _icecast_stats(self) -> dict:
+        try:
+            with _no_proxy.open(f"{self.icecast}/status-json.xsl", timeout=3) as resp:
+                stats = json.load(resp)["icestats"]
+        except Exception:
+            return {"up": False}
+        sources = stats.get("source") or []
+        sources = sources if isinstance(sources, list) else [sources]
+        src = next((s for s in sources if str(s.get("listenurl", "")).endswith("/" + self.mount)), None)
+        if not src:
+            return {"up": True, "on_air": False}
+        return {
+            "up": True,
+            "on_air": True,
+            "listeners": src.get("listeners", 0),
+            "peak": src.get("listener_peak", 0),
+            "title": src.get("title", ""),
+            "bitrate": src.get("bitrate") or src.get("audio_bitrate"),
+            "since": src.get("stream_start_iso8601"),
+        }
+
+    @staticmethod
+    def _job_summary(job: dict) -> dict:
+        return {k: job[k] for k in ("id", "kind", "title", "status", "started", "finished")}
+
+    # vezérlés
+
+    def _read_control(self, cfg: config_mod.Config) -> dict:
+        try:
+            return json.loads((cfg.data_dir / "control.json").read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {"override": "", "skip_news": 0}
+
+    def control(self, body: dict) -> dict:
+        cfg = self.cfg()
+        with self._control_lock:
+            ctl = self._read_control(cfg)
+            if "override" in body:
+                ctl["override"] = str(body["override"] or "")
+            if body.get("skip_news"):
+                ctl["skip_news"] = int(ctl.get("skip_news", 0)) + 1
+            path = cfg.data_dir / "control.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"override": ctl["override"], "skip_news": ctl["skip_news"]}))
+            tmp.replace(path)
+        return ctl
+
+    def _cli(self, *args: str) -> list[str]:
+        return [sys.executable, "-m", "airadio.cli", "--config", str(self.config_path), *args]
+
+    def _env(self) -> dict:
+        return {**os.environ, "PYTHONUNBUFFERED": "1"}
+
+    def news_job(self, dry_run: bool) -> dict:
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            raise ApiError(409, "Nincs Claude API-kulcs. Írd be az .env fájlba, majd: docker compose up -d")
+        args = ["news", "--dry-run"] if dry_run else ["news", "--now"]
+        title = "Hírblokk próba (csak szöveg)" if dry_run else "Hírblokk most, adásba"
+        return self.jobs.start(
+            "news-dry" if dry_run else "news-now",
+            title,
+            lambda emit: run_command(self._cli(*args), emit, self._env()),
+        )
+
+    def apply_job(self) -> dict:
+        def work(emit) -> bool:
+            emit("Állomáslista összeállítása és a stream-ek kipróbálása…")
+            if not run_command(self._cli("stations", "render"), emit, self._env()):
+                return False
+            killed = restart_liquidsoap()
+            if killed:
+                emit("A rádió újraindul, pár másodperc csend után az új lista szerint szól.")
+            else:
+                emit("A Liquidsoap nem fut ezen a gépen, az új lista a következő induláskor lép életbe.")
+            return True
+
+        return self.jobs.start("apply", "Állomások alkalmazása", work)
+
+    def feeds_job(self) -> dict:
+        return self.jobs.start(
+            "feeds", "Hírforrások ellenőrzése", lambda emit: run_command(self._cli("feeds", "check"), emit, self._env())
+        )
+
+    def running_stations(self) -> dict:
+        try:
+            return json.loads(self.cfg().stations_file.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {"dayparts": []}
+
+    def voices_job(self, names: list[str]) -> dict:
+        cfg = self.cfg()
+        unknown = [n for n in names if not re.fullmatch(r"[a-z]{2}_[A-Z]{2}-[a-z0-9_]+-(x_low|low|medium|high)", n)]
+        if unknown:
+            raise ApiError(400, f"Ismeretlen hangnév: {', '.join(unknown)}")
+        argv = [sys.executable, "-m", "piper.download_voices", "--data-dir", str(cfg.voices_dir), *names]
+        return self.jobs.start("voices", "Hangok letöltése", lambda emit: run_command(argv, emit, self._env()))
+
+    # hangok
+
+    def voices(self) -> list[dict]:
+        cfg = self.cfg()
+        names = list(dict.fromkeys([*HU_VOICES, cfg.host_voice, cfg.news_voice]))
+        return [{"name": n, "downloaded": (cfg.voices_dir / f"{n}.onnx").exists()} for n in names]
+
+    def voice_preview(self, voice: str, text: str) -> bytes:
+        cfg = self.cfg()
+        text = (text or "").strip()[:400] or "Jó napot, ez itt az AI Rádió."
+        with self._speaker_lock:
+            if self._speaker is None or self._speaker.voices_dir != cfg.voices_dir:
+                self._speaker = tts.PiperSpeaker(cfg.voices_dir)
+            buf = io.BytesIO()
+            try:
+                with wave.open(buf, "wb") as wav:
+                    self._speaker._voice(voice).synthesize_wav(text, wav)
+            except tts.TTSError as e:
+                raise ApiError(409, str(e)) from None
+        return buf.getvalue()
+
+    # hírek
+
+    def news_history(self, limit: int) -> dict:
+        cfg = self.cfg()
+        entries = history.BulletinLog(cfg.state_dir / "bulletins.json").entries()
+        today = datetime.now().date().isoformat()
+        month = today[:7]
+        sums = {"today": [0.0, 0], "month": [0.0, 0], "total": [0.0, 0]}
+        tokens = {"input": 0, "output": 0}
+        for e in entries:
+            cost = history.cost_usd(e.get("model", ""), e.get("input_tokens", 0), e.get("output_tokens", 0)) or 0.0
+            e["cost_usd"] = round(cost, 4)
+            tokens["input"] += e.get("input_tokens", 0)
+            tokens["output"] += e.get("output_tokens", 0)
+            for key, match in (("today", today), ("month", month), ("total", "")):
+                if e["created"].startswith(match):
+                    sums[key][0] += cost
+                    sums[key][1] += 1
+            e["audio"] = bool(e.get("file")) and (cfg.news_dir / e["file"]).exists()
+        return {
+            "entries": list(reversed(entries))[:limit],
+            "cost": {k: {"usd": round(v[0], 3), "count": v[1]} for k, v in sums.items()},
+            "tokens": tokens,
+        }
+
+    def news_audio(self, name: str) -> Path:
+        if not NEWS_FILE.match(name):
+            raise ApiError(404, "Nincs ilyen hanganyag")
+        path = self.cfg().news_dir / name
+        if not path.exists():
+            raise ApiError(404, "A hanganyag már nincs meg (24 óra után törlődik)")
+        return path
+
+    # zenetár
+
+    def _library_dir(self, kind: str) -> Path:
+        cfg = self.cfg()
+        if kind == "backup":
+            return cfg.data_dir / "backup"
+        if kind == "jingles":
+            return cfg.jingles_dir
+        raise ApiError(404, "Ismeretlen mappa")
+
+    @staticmethod
+    def _safe_name(name: str) -> str:
+        name = Path(urllib.parse.unquote(name)).name.strip()
+        if not name or name.startswith(".") or "/" in name or "\\" in name:
+            raise ApiError(400, "Érvénytelen fájlnév")
+        return name
+
+    def library(self, kind: str) -> list[dict]:
+        folder = self._library_dir(kind)
+        folder.mkdir(parents=True, exist_ok=True)
+        files = []
+        for p in sorted(folder.iterdir(), key=lambda p: p.name.lower()):
+            if p.is_file() and p.suffix.lower() in AUDIO_EXT:
+                st = p.stat()
+                files.append({"name": p.name, "size": st.st_size, "modified": int(st.st_mtime)})
+        return files
+
+    def library_file(self, kind: str, name: str) -> Path:
+        path = self._library_dir(kind) / self._safe_name(name)
+        if not path.is_file():
+            raise ApiError(404, "Nincs ilyen fájl")
+        return path
+
+    def library_upload(self, kind: str, name: str, stream, length: int) -> dict:
+        name = self._safe_name(name)
+        if length <= 0 or length > MAX_UPLOAD:
+            raise ApiError(413, "A fájl üres vagy túl nagy (legfeljebb 300 MB)")
+        if Path(name).suffix.lower() not in AUDIO_EXT:
+            raise ApiError(400, "Csak hangfájl tölthető fel (mp3, ogg, wav, flac, m4a, aac, opus)")
+        folder = self._library_dir(kind)
+        folder.mkdir(parents=True, exist_ok=True)
+        if kind == "jingles":
+            stem = Path(name).stem
+            if stem not in JINGLES:
+                raise ApiError(400, "A hírszignál neve hirek_eleje vagy hirek_vege lehet")
+        tmp = folder / f".feltoltes-{uuid.uuid4().hex}{Path(name).suffix}"
+        try:
+            remaining = length
+            with tmp.open("wb") as f:
+                while remaining:
+                    chunk = stream.read(min(remaining, 1 << 20))
+                    if not chunk:
+                        raise ApiError(400, "Megszakadt feltöltés")
+                    f.write(chunk)
+                    remaining -= len(chunk)
+            if kind == "jingles":
+                # A hírblokk-összefűzés WAV-ot vár: átalakítjuk.
+                target = folder / f"{Path(name).stem}.wav"
+                result = subprocess.run(
+                    ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(tmp), "-ar", "44100", "-ac", "2",
+                     "-c:a", "pcm_s16le", str(target)],
+                    capture_output=True, text=True,
+                )
+                if result.returncode != 0:
+                    raise ApiError(400, f"Nem hangfájl: {result.stderr.strip()[:200]}")
+            else:
+                target = folder / name
+                tmp.replace(target)
+        finally:
+            tmp.unlink(missing_ok=True)
+        return {"ok": True, "name": target.name}
+
+    def library_delete(self, kind: str, name: str) -> dict:
+        self.library_file(kind, name).unlink()
+        return {"ok": True}
+
+    # napló, élő adás
+
+    def logs(self, source: str, lines: int) -> list[str]:
+        cfg = self.cfg()
+        path = cfg.data_dir / "log" / ("liquidsoap.log" if source == "radio" else "airadio.log")
+        try:
+            with path.open("rb") as f:
+                f.seek(0, os.SEEK_END)
+                size = f.tell()
+                f.seek(max(0, size - 256 * 1024))
+                data = f.read().decode("utf-8", "replace")
+        except FileNotFoundError:
+            return [f"({path.name} még nincs)"]
+        return data.splitlines()[-lines:]
+
+    def live_info(self, host: str) -> dict:
+        port = os.environ.get("AIRADIO_LIVE_PORT") or os.environ.get("LIVE_PORT", "8005")
+        return {
+            "host": host,
+            "port": int(port),
+            "mount": "/live",
+            "user": "source",
+            "password": os.environ.get("LIVE_PASSWORD", ""),
+            "public_port": int(os.environ.get("AIRADIO_PORT", os.environ.get("ICECAST_PORT", "8000"))),
+        }
+
+
+# --- HTTP ---------------------------------------------------------------------------------
+
+
+def make_handler(app: Dashboard, password: str):
+    class Handler(BaseHTTPRequestHandler):
+        server_version = "airadio"
+
+        def log_message(self, fmt, *args):
+            log.debug("%s %s", self.address_string(), fmt % args)
+
+        # válaszok
+
+        def _json(self, data, status: int = 200) -> None:
+            body = json.dumps(data, ensure_ascii=False).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _file(self, path: Path, ctype: str) -> None:
+            size = path.stat().st_size
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(size))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            with path.open("rb") as f:
+                shutil.copyfileobj(f, self.wfile)
+
+        def _bytes(self, data: bytes, ctype: str) -> None:
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _body(self) -> dict:
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > MAX_JSON:
+                raise ApiError(413, "Túl nagy kérés")
+            if not length:
+                return {}
+            try:
+                return json.loads(self.rfile.read(length))
+            except json.JSONDecodeError:
+                raise ApiError(400, "Hibás JSON") from None
+
+        def _authorized(self) -> bool:
+            if not password:
+                return True
+            header = self.headers.get("Authorization", "")
+            if header.startswith("Basic "):
+                try:
+                    _, _, given = base64.b64decode(header[6:]).decode().partition(":")
+                except Exception:
+                    return False
+                return hmac.compare_digest(given, password)
+            return False
+
+        def _dispatch(self, method: str) -> None:
+            if not self._authorized():
+                self.send_response(HTTPStatus.UNAUTHORIZED)
+                self.send_header("WWW-Authenticate", 'Basic realm="AI Radio"')
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            url = urllib.parse.urlsplit(self.path)
+            query = dict(urllib.parse.parse_qsl(url.query))
+            try:
+                self._route(method, url.path, query)
+            except ApiError as e:
+                self._json({"error": str(e)}, e.status)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            except config_mod.ConfigError as e:
+                self._json({"error": str(e)}, 500)
+            except Exception as e:
+                log.exception("Hiba: %s %s", method, self.path)
+                self._json({"error": f"Belső hiba: {e}"}, 500)
+
+        def do_GET(self):
+            self._dispatch("GET")
+
+        def do_POST(self):
+            self._dispatch("POST")
+
+        def do_PUT(self):
+            self._dispatch("PUT")
+
+        def do_DELETE(self):
+            self._dispatch("DELETE")
+
+        # útvonalak
+
+        def _route(self, method: str, path: str, q: dict) -> None:
+            m = None
+
+            def match(pattern: str) -> bool:
+                nonlocal m
+                m = re.fullmatch(pattern, path)
+                return m is not None
+
+            if method == "GET" and path in ("/", "/index.html"):
+                return self._file(WEB_DIR / "dashboard.html", "text/html; charset=utf-8")
+            if method == "GET" and path == "/stream":
+                return self._stream()
+            if method == "GET" and path == "/api/status":
+                return self._json(app.status())
+            if path == "/api/config":
+                if method == "GET":
+                    return self._json(app.raw_config())
+                if method == "PUT":
+                    return self._json(app.save_config(self._body()))
+            if method == "POST" and path == "/api/apply":
+                return self._json(app.apply_job())
+            if method == "POST" and path == "/api/control":
+                return self._json(app.control(self._body()))
+            if method == "GET" and path == "/api/stations/search":
+                query = config_mod.StationSearch(tag=q.get("tag", ""), countrycode=q.get("country", "").upper())
+                found = stations.search(query, limit=min(int(q.get("limit", 30)), 100), name=q.get("name", ""))
+                return self._json([f.__dict__ for f in found])
+            if method == "GET" and path == "/api/stations/current":
+                return self._json(app.running_stations())
+            if method == "POST" and path == "/api/feeds/check":
+                return self._json(app.feeds_job())
+            if method == "POST" and path == "/api/stations/probe":
+                return self._json({"ok": stations.probe(str(self._body().get("url", "")))})
+            if method == "POST" and path == "/api/news/now":
+                return self._json(app.news_job(dry_run=False))
+            if method == "POST" and path == "/api/news/dry-run":
+                return self._json(app.news_job(dry_run=True))
+            if method == "GET" and path == "/api/news/history":
+                return self._json(app.news_history(int(q.get("limit", 30))))
+            if method == "GET" and match(r"/api/news/audio/([^/]+)"):
+                return self._file(app.news_audio(m.group(1)), "audio/wav")
+            if method == "GET" and path == "/api/jobs":
+                return self._json([app._job_summary(j) for j in app.jobs.recent()])
+            if method == "GET" and match(r"/api/jobs/([0-9a-f]+)"):
+                job = app.jobs.get(m.group(1))
+                if not job:
+                    raise ApiError(404, "Nincs ilyen feladat")
+                return self._json(job)
+            if method == "GET" and path == "/api/voices":
+                return self._json(app.voices())
+            if method == "POST" and path == "/api/voices/download":
+                return self._json(app.voices_job(list(self._body().get("names", []))))
+            if method == "POST" and path == "/api/voices/preview":
+                body = self._body()
+                return self._bytes(app.voice_preview(str(body.get("voice", "")), str(body.get("text", ""))), "audio/wav")
+            if match(r"/api/library/(backup|jingles)"):
+                if method == "GET":
+                    return self._json(app.library(m.group(1)))
+            if match(r"/api/library/(backup|jingles)/([^/]+)"):
+                kind, name = m.group(1), m.group(2)
+                if method == "GET":
+                    path_ = app.library_file(kind, name)
+                    return self._file(path_, mimetypes.guess_type(path_.name)[0] or "application/octet-stream")
+                if method == "PUT":
+                    length = int(self.headers.get("Content-Length") or 0)
+                    return self._json(app.library_upload(kind, name, self.rfile, length))
+                if method == "DELETE":
+                    return self._json(app.library_delete(kind, name))
+            if method == "GET" and path == "/api/logs":
+                return self._json(app.logs(q.get("source", "radio"), min(int(q.get("lines", 300)), 2000)))
+            if method == "GET" and path == "/api/live":
+                host = (self.headers.get("Host") or "localhost").rsplit(":", 1)[0]
+                return self._json(app.live_info(host))
+            raise ApiError(404, "Nincs ilyen végpont")
+
+        def _stream(self) -> None:
+            """Az adás továbbítása azonos eredetről, hogy a böngésző hangszintmérője működjön."""
+            try:
+                upstream = _no_proxy.open(f"{app.icecast}/{app.mount}", timeout=10)
+            except Exception:
+                raise ApiError(503, "Az adás most nem érhető el") from None
+            with upstream:
+                self.send_response(200)
+                self.send_header("Content-Type", upstream.headers.get("Content-Type", "audio/mpeg"))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                while chunk := upstream.read1(16384):
+                    self.wfile.write(chunk)
+
+    return Handler
+
+
+def serve(config_path: Path, host: str, port: int) -> None:
+    app = Dashboard(config_path)
+    app.cfg()  # hibás beállítással ne induljon el csendben
+    password = os.environ.get("ADMIN_PASSWORD", "")
+    server = ThreadingHTTPServer((host, port), make_handler(app, password))
+    server.daemon_threads = True
+    log.info("Irányítópult: http://%s:%d%s", host, port, " (jelszóval)" if password else "")
+    server.serve_forever()

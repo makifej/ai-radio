@@ -15,6 +15,16 @@ Az **airadio** Python csomag minden óra 50. percében (systemd timer) elkészí
 
 A kész fájl `/var/lib/airadio/news/hirek-ÉÉÉÉHHNN-ÓÓ.wav`; a Liquidsoap az óra első öt percében indítja. Ha bármelyik lépés elakad, abban az órában csak zene szól. Élő adás alatt a hír kimarad.
 
+## Irányítópult
+
+Egy webes stúdiófelületen állítható minden, szerkesztés nélkül. Az **Áttekintés** mutatja, mi szól most (automata, kézi, hírek, élő adás, tartalék), a napi műsorrendet és a hallgatók számát. Innen indítható azonnali hírblokk, megállítható egy éppen szóló hír, választható kézzel állomás, és vissza lehet állni az automatára. A fejlécben monitor fül és hangszintmérő van.
+
+Az **Állomások** lapon napszakonként rendezhetők és kipróbálhatók az adók. Itt lehet keresni a Radio Browser katalógusában, és az „Alkalmazás” gombbal egy pár másodperces újraindítással élesíteni a változást. A **Hírek** lapon beállítható, mely órákban legyen hír, milyen forrásokból, melyik Claude-modellel és milyen gondolkodási szinttel. Itt látszik a hírtörténet a szövegekkel, visszahallgatható hanganyaggal és a Claude-költséggel (napi, havi és összesített bontásban).
+
+A **Napszakok** lapon az idősávok és a műsorvezetői karakterek szerkeszthetők. A **Hangok** lapon a műsorvezető és a hírolvasó Piper-hangja választható, letölthető és meghallgatható. A **Zenetár** a tartalék zene és a hírszignál feltöltésére szolgál. Az **Élő adás** lap megadja a csatlakozási adatokat, a **Napló** pedig az adás és a hírszerkesztő eseményeit mutatja.
+
+Dockerben: `http://localhost:8020`. Ez csak a saját gépről érhető el. Szerveren az irányítópult a 127.0.0.1:8080 címen fut, és SSH-alagúton érhető el: `ssh -L 8020:127.0.0.1:8080 ubuntu@<szerver-ip>`, utána `http://localhost:8020`. Ha `ADMIN_PASSWORD` környezeti változót adsz meg, jelszót is kér (felhasználó: admin).
+
 ## Helyi futtatás a saját gépen (Mac, Windows, Linux)
 
 Kell hozzá a Docker Desktop. A kicsomagolt mappában:
@@ -24,7 +34,7 @@ cp .env.example .env        # írd bele az ANTHROPIC_API_KEY-t
 docker compose up -d --build
 ```
 
-Utána böngészőben (Dia, Chrome, Safari): `http://localhost:8010`. Ez a lejátszóoldal, a nyers stream a `http://localhost:8010/radio.mp3` címen érhető el. A 8010-es portot azért választottuk, mert a 8000-est gyakran más helyi alkalmazás foglalja. Ha a 8010 is foglalt, az `.env` fájlban az `AIRADIO_PORT` értékével átírható.
+Utána böngészőben (Dia, Chrome, Safari): `http://localhost:8010` a hallgatói lejátszó, `http://localhost:8020` az irányítópult. A 8010-es oldal a lejátszó, a nyers stream a `http://localhost:8010/radio.mp3` címen érhető el. A 8010-es portot azért választottuk, mert a 8000-est gyakran más helyi alkalmazás foglalja. Ha a 8010 is foglalt, az `.env` fájlban az `AIRADIO_PORT` értékével átírható.
 
 Az első indulás néhány percig tart: a Docker felépíti a környezetet, letölti a Piper hangokat, és összeállítja az állomáslistát. Minden adat a `data` mappába kerül. A beállítás itt van: `data/config/radio.toml`. A tartalék zenét a `data/backup` mappába másold, a jelszavakat a `data/config/secrets.env` tartalmazza. Beállítás vagy állomáslista módosítása után:
 

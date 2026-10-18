@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import logging.handlers
+import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from . import config as config_mod
 from . import feeds, news, stations, tts
@@ -55,7 +58,9 @@ def cmd_stations_search(cfg, args) -> int:
 
 def cmd_stations_render(cfg, args) -> int:
     path = stations.write(cfg, stations.resolve(cfg))
-    print(f"Kész: {path}. A rádió újraindítása után lép életbe (systemctl restart airadio-radio, Dockerben: docker compose restart).")
+    print(f"Kész: {path}")
+    if sys.stdout.isatty():
+        print("A rádió újraindítása után lép életbe (systemctl restart airadio-radio, Dockerben: docker compose restart).")
     return 0
 
 
@@ -88,6 +93,13 @@ def cmd_status(cfg, args) -> int:
     return 0
 
 
+def cmd_dashboard(cfg, args) -> int:
+    from . import dashboard
+
+    dashboard.serve(Path(args.config or os.environ.get("AIRADIO_CONFIG", config_mod.DEFAULT_PATH)), args.host, args.port)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="airadio", description="AI Rádió segédprogram")
     p.add_argument("--config", help=f"beállítófájl (alapértelmezés: $AIRADIO_CONFIG vagy {config_mod.DEFAULT_PATH})")
@@ -117,7 +129,24 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_parser("download", help="a beállított hangok letöltése").set_defaults(func=cmd_voices_download)
 
     sub.add_parser("status", help="mi szól most").set_defaults(func=cmd_status)
+
+    d = sub.add_parser("dashboard", help="webes irányítópult indítása")
+    d.add_argument("--host", default="127.0.0.1")
+    d.add_argument("--port", type=int, default=8080)
+    d.set_defaults(func=cmd_dashboard)
     return p
+
+
+def add_file_log(cfg: config_mod.Config) -> None:
+    """Napló a data mappába is, hogy az irányítópult mutatni tudja."""
+    log_dir = cfg.data_dir / "log"
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        handler = logging.handlers.RotatingFileHandler(log_dir / "airadio.log", maxBytes=1 << 20, backupCount=3)
+    except OSError:
+        return
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+    logging.getLogger().addHandler(handler)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -131,6 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     except config_mod.ConfigError as e:
         log.error("%s", e)
         return 2
+    add_file_log(cfg)
     return args.func(cfg, args)
 
 

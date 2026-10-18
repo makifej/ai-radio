@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from datetime import datetime
 
 import anthropic
@@ -88,6 +89,13 @@ class WriterError(Exception):
     pass
 
 
+@dataclass(frozen=True)
+class Usage:
+    model: str
+    input_tokens: int
+    output_tokens: int
+
+
 def build_prompt(
     items: list[NewsItem],
     slot: datetime,
@@ -130,7 +138,7 @@ def write_bulletin(
     host: str,
     recent_titles: list[str],
     max_items: int,
-) -> Bulletin:
+) -> tuple[Bulletin, Usage]:
     extra = {"betas": [FALLBACK_BETA], "fallbacks": "default"} if fallback else {}
     try:
         response = client.beta.messages.create(
@@ -164,11 +172,6 @@ def write_bulletin(
     except ValidationError as e:
         raise WriterError(f"A válasz nem felel meg a sémának: {e}") from e
 
-    usage = response.usage
-    log.info(
-        "Claude (%s): %s bemeneti, %s kimeneti token",
-        response.model,
-        usage.input_tokens,
-        usage.output_tokens,
-    )
-    return bulletin
+    usage = Usage(response.model, response.usage.input_tokens, response.usage.output_tokens)
+    log.info("Claude (%s): %s bemeneti, %s kimeneti token", usage.model, usage.input_tokens, usage.output_tokens)
+    return bulletin, usage

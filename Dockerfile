@@ -26,5 +26,5 @@ COPY deploy ./deploy
 RUN cp radio/player.html /usr/share/icecast2/web/player.html
 
 VOLUME /var/lib/airadio
-EXPOSE 8000 8005
+EXPOSE 8000 8005 8080
 ENTRYPOINT ["/opt/airadio/deploy/docker/entrypoint.sh"]

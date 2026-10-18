@@ -25,9 +25,10 @@ def call(client, fallback=True):
 def test_request_shape_and_parsing():
     payload = {"intro": "Nyolc óra van.", "items": [{"source_id": 1, "text": "A Teszt szerint…"}], "outro": "Ennyi."}
     client, messages = fake_client(payload)
-    bulletin = call(client)
+    bulletin, usage = call(client)
 
     assert bulletin.items[0].source_id == 1
+    assert (usage.model, usage.input_tokens, usage.output_tokens) == ("claude-sonnet-5-5", 1200, 400)
     sent = messages.calls[0]
     assert sent["model"] == "claude-sonnet-5-5"
     assert sent["output_config"]["effort"] == "medium"

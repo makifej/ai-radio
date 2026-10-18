@@ -11,16 +11,23 @@
 # kerül (ffmpeg_io.ml assertion), ezért a választást a fallback/switch végzi,
 # nem a bemenetek ki-be kapcsolása.
 
-settings.log.stdout := true
-settings.log.file := false
-
 def env(name, default) =
   environment.get(default=default, name)
+end
+
+settings.log.stdout := true
+# Az irányítópult a naplófájlt olvassa, ha meg van adva.
+log_file = env("AIRADIO_LOG_FILE", "")
+settings.log.file := log_file != ""
+if log_file != "" then
+  settings.log.file.path := log_file
+  settings.log.file.perms := 420
 end
 
 data_dir = env("AIRADIO_DATA_DIR", "/var/lib/airadio")
 stations_file = "#{data_dir}/stations.json"
 status_file = "#{data_dir}/status.json"
+control_file = "#{data_dir}/control.json"
 news_dir = "#{data_dir}/news"
 backup_dir = "#{data_dir}/backup"
 station_name = env("AIRADIO_NAME", "AI Rádió")
@@ -100,8 +107,18 @@ relay =
     source.fail()
   end
 
+# Kézi állomásválasztás az irányítópultról (control.json): bármelyik beállított
+# állomás, napszaktól függetlenül; ha nem szól, az automata megy tovább.
+override_url = ref("")
+manual =
+  if list.length(station_sources) > 0 then
+    switch(id="kezi", track_sensitive=false, list.map(fun (p) -> ({override_url() == fst(p)}, snd(p)), station_sources))
+  else
+    source.fail()
+  end
+
 backup = playlist(id="tartalek", mode="randomize", reload_mode="watch", backup_dir)
-music = fallback(id="zene", track_sensitive=false, [relay, backup])
+music = fallback(id="zene", track_sensitive=false, [manual, relay, backup])
 
 news = request.queue(id="hirek")
 
@@ -114,6 +131,10 @@ end
 
 radio = fallback(id="adas", track_sensitive=false, transitions=[atmenet, atmenet, atmenet], [live, news, music])
 radio = mksafe(radio)
+
+current_meta = ref(([] : [(string * string)]))
+radio.on_metadata(fun (m) -> current_meta := m)
+started = time.string("%Y-%m-%d %H:%M:%S")
 
 output.icecast(
   %mp3(bitrate=128, samplerate=44100, stereo=true),
@@ -128,8 +149,18 @@ output.icecast(
 )
 
 # --- Állapot -------------------------------------------------------------------
-# Az `airadio status` ezt olvassa. Az aktív állomás az aktuális napszak első
-# szóló állomása, ugyanúgy, ahogy a fallback választ.
+# Az `airadio status` és az irányítópult ezt olvassa. Az aktív állomás az
+# aktuális napszak első szóló állomása, ugyanúgy, ahogy a fallback választ.
+
+all_stations = list.fold(
+  fun (acc, d) -> list.fold(fun (acc, s) -> list.exists(fun (x) -> x.url == s.url, acc) ? acc : [...acc, s], acc, d.stations),
+  [],
+  dayparts
+)
+
+def station_name_for(url) =
+  list.find(default={name=url, url=url}, fun (s) -> s.url == url, all_stations).name
+end
 
 active_station = ref("")
 
@@ -137,28 +168,79 @@ def report() =
   hour = current_hour()
   d = list.find(default={name="", start=0, stop=0, stations=[]}, fun (d) -> in_daypart(hour, d), all_dayparts)
   playing = list.find(default={name="", url=""}, fun (s) -> station_source(s.url).is_ready(), d.stations)
-  label = if playing.name == "" then "tartalék" else playing.name end
+  manual_on = override_url() != "" and station_source(override_url()).is_ready()
+
+  on_air =
+    if source.is_ready(live) then "elo"
+    elsif source.is_ready(news) then "hirek"
+    elsif manual_on then "kezi"
+    elsif playing.name != "" then "allomas"
+    elsif source.is_ready(backup) then "tartalek"
+    else "csend" end
+
+  label =
+    if manual_on then station_name_for(override_url())
+    elsif playing.name != "" then playing.name
+    else "tartalék" end
   if label != active_station() then
     daypart = if d.name == "" then "nincs napszak" else d.name end
     log.important(label="allomasok", "#{daypart}: #{label} szól")
     active_station := label
   end
 
+  meta = current_meta()
   file.write(
     data=json.stringify({
       daypart=d.name,
       station=label,
-      url=playing.url,
-      stations=list.map(fun (s) -> {name=s.name, ready=station_source(s.url).is_ready()}, d.stations),
+      url=if manual_on then override_url() else playing.url end,
+      on_air=on_air,
+      override=override_url(),
+      title=list.assoc(default="", "title", meta),
+      artist=list.assoc(default="", "artist", meta),
+      stations=list.map(fun (s) -> {name=s.name, url=s.url, ready=station_source(s.url).is_ready()}, d.stations),
+      all_stations=list.map(fun (s) -> {name=s.name, url=s.url, ready=station_source(s.url).is_ready()}, all_stations),
       news=source.is_ready(news),
       live=source.is_ready(live),
+      started=started,
       updated=time.string("%Y-%m-%d %H:%M:%S")
     }),
     status_file
   )
 end
 
-thread.run(delay=5., every=5., report)
+thread.run(delay=3., every=2., report)
+
+# --- Vezérlés az irányítópultról ------------------------------------------------
+# control.json: {"override": "<stream URL vagy üres>", "skip_news": <számláló>}
+
+skip_seen = ref(-1)
+
+def poll_control() =
+  if file.exists(control_file) then
+    try
+      let json.parse (c : {override: string, skip_news: int}) = file.contents(control_file)
+      if c.override != override_url() then
+        override_url := c.override
+        if c.override == "" then
+          log.important(label="vezerles", "Vissza az automatára")
+        else
+          log.important(label="vezerles", "Kézi állomás: #{station_name_for(c.override)}")
+        end
+      end
+      # az első olvasás csak szinkronizál, induláskor nem állítunk le semmit
+      if skip_seen() >= 0 and c.skip_news > skip_seen() then
+        log.important(label="vezerles", "Hírblokk leállítva")
+        news.skip()
+      end
+      skip_seen := c.skip_news
+    catch err do
+      log.severe(label="vezerles", "#{control_file}: #{err.message}")
+    end
+  end
+end
+
+thread.run(delay=2., every=2., poll_control)
 
 # --- Óránkénti hírblokk ---------------------------------------------------------
 # Az `airadio news` a hirek-ÉÉÉÉHHNN-ÓÓ.wav fájlt az óra előtt elkészíti; itt

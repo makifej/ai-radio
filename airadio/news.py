@@ -17,6 +17,7 @@ from pathlib import Path
 
 from . import audio, feeds
 from .config import Config
+from .history import BulletinLog
 from .writer import Bulletin, write_bulletin
 
 log = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ def _jingle(cfg: Config, name: str) -> list[Path]:
 
 def cleanup(cfg: Config, now: datetime) -> None:
     cutoff = (now - timedelta(hours=KEEP_FILES_HOURS)).timestamp()
-    for old in [*cfg.news_dir.glob("hirek-*.wav"), *cfg.news_dir.glob("azonnal-*.wav")]:
+    for old in [*cfg.news_dir.glob("hirek-*.wav"), *cfg.news_dir.glob("azonnal-*.wav"), *cfg.news_dir.glob("archiv-*.wav")]:
         if old.stat().st_mtime < cutoff:
             old.unlink(missing_ok=True)
 
@@ -111,7 +112,7 @@ def produce(
     items = items[:25]  # bőven elég a válogatáshoz, és kordában tartja a bemeneti tokeneket
 
     aired = AiredLog(cfg.state_dir / "aired.json")
-    bulletin = write_bulletin(
+    bulletin, usage = write_bulletin(
         client,
         model=cfg.model,
         effort=cfg.effort,
@@ -123,8 +124,21 @@ def produce(
         max_items=cfg.news.max_items,
     )
     chosen = select_items(bulletin, items, cfg.news.max_items)
+    history = BulletinLog(cfg.state_dir / "bulletins.json")
+    entry_id = history.add(
+        kind="dry-run" if dry_run else "now" if immediate else "hourly",
+        slot=slot.isoformat(timespec="minutes"),
+        intro=bulletin.intro.strip(),
+        items=[{"source": item.source, "title": item.title, "link": item.link, "text": text} for item, text in chosen],
+        outro=bulletin.outro.strip(),
+        model=usage.model,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        status="szöveg kész" if dry_run else "felolvasás",
+    )
     if len(chosen) < cfg.news.min_items:
         log.warning("A szerkesztés után kevés hír maradt (%d), most nincs hírblokk", len(chosen))
+        history.update(entry_id, status="kevés hír, kimaradt")
         return None
 
     if dry_run:
@@ -136,6 +150,36 @@ def produce(
 
     cfg.news_dir.mkdir(parents=True, exist_ok=True)
     target = cfg.news_dir / IMMEDIATE_NAME if immediate else bulletin_path(cfg, slot)
+    # Az azonnali blokkot a Liquidsoap lejátszáskor átnevezi, ezért a visszahallgatáshoz
+    # külön archív másolat készül.
+    archive = cfg.news_dir / f"archiv-{slot:%Y%m%d-%H%M}.wav" if immediate else target
+    try:
+        result, voiced = _voice(cfg, speaker, bulletin, chosen, target, archive)
+    except Exception as e:
+        history.update(entry_id, status=f"hiba: {e}")
+        raise
+    history.update(
+        entry_id,
+        status="kész",
+        file=archive.name,
+        seconds=round(result.seconds, 1),
+        items=history_items(chosen, voiced),
+    )
+    aired.record([item.title for item, _ in voiced], slot)
+    cleanup(cfg, now)
+    log.info("Kész: %s (%.0f mp, %d hír)", target, result.seconds, len(voiced))
+    return target
+
+
+def history_items(chosen, voiced) -> list[dict]:
+    kept = {id(item) for item, _ in voiced}
+    return [
+        {"source": item.source, "title": item.title, "link": item.link, "text": text, "aired": id(item) in kept}
+        for item, text in chosen
+    ]
+
+
+def _voice(cfg: Config, speaker, bulletin: Bulletin, chosen, target: Path, archive: Path):
     with tempfile.TemporaryDirectory(prefix="airadio-") as tmp:
         tmp = Path(tmp)
         intro = speaker.synthesize(bulletin.intro.strip(), cfg.host_voice, tmp / "intro.wav")
@@ -163,11 +207,9 @@ def produce(
 
         result = audio.check(rendered, cfg.news.max_seconds)
         # Átmásolás a news mappába, majd atomi átnevezés: a Liquidsoap sosem lát félkész fájlt.
+        if archive != target:
+            shutil.copyfile(rendered, archive)
         partial = target.with_suffix(".part")
         shutil.copyfile(rendered, partial)
         partial.replace(target)
-
-    aired.record([item.title for item, _ in voiced], slot)
-    cleanup(cfg, now)
-    log.info("Kész: %s (%.0f mp, %d hír)", target, result.seconds, len(voiced))
-    return target
+    return result, voiced

@@ -1,0 +1,8 @@
+/var/lib/airadio/log/liquidsoap.log {
+    weekly
+    rotate 4
+    compress
+    missingok
+    notifempty
+    copytruncate
+}

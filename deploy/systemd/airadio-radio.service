@@ -8,6 +8,7 @@ User=airadio
 Group=airadio
 EnvironmentFile=/etc/airadio/airadio.env
 Environment=AIRADIO_DATA_DIR=/var/lib/airadio
+Environment=AIRADIO_LOG_FILE=/var/lib/airadio/log/liquidsoap.log
 Environment=TZ=Europe/Budapest
 ExecStart=/usr/bin/liquidsoap /opt/airadio/radio/radio.liq
 Restart=always
