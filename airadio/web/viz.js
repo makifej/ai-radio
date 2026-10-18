@@ -94,6 +94,12 @@
           v = (m + tilt - minDb) / (maxDb - minDb);
           v = Math.max(0, Math.min(1, v));
           v = Math.pow(v, 1.6); // kontraszt: a halk zaj ne töltse ki a képet
+        } else if (this.active && !reduceMotion) {
+          // szól, de nincs elemző (telefonon sima lejátszás): ütemre lüktető, élénkebb minta
+          const beat = Math.pow(0.5 + 0.5 * Math.sin(t / 240), 6);
+          v = 0.2 + (i < n * 0.2 ? beat * 0.45 : beat * 0.08) + 0.14 * Math.sin(t / 380 + i * 0.5)
+            + 0.1 * Math.sin(t / 170 - i * 0.23) * Math.sin(t / 900 + i);
+          v = Math.max(0.03, Math.min(0.95, v * (1 - (i / n) * 0.45)));
         } else {
           // üresjárat: lassan hullámzó, halk minta
           v = reduceMotion ? 0.05 : 0.05 + 0.04 * Math.sin(t / 900 + i * 0.32) + 0.025 * Math.sin(t / 470 - i * 0.11);

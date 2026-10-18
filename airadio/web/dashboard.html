@@ -329,6 +329,15 @@ details.b .body p { margin: 10px 0 0; }
 .gtab.act::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--style); vertical-align: middle; }
 .sfind { width: 240px; padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line2); background: var(--bg); color: var(--text); }
 .sfind:focus { outline: none; border-color: var(--style); }
+/* hallgatás telefonon */
+.phone { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 14px; }
+.pbox { display: flex; gap: 16px; align-items: center; padding: 14px; border: 1px solid var(--line2); border-radius: 12px; background: var(--panel2); min-width: 0; }
+.pbox .qr { flex: none; width: 136px; height: 136px; border-radius: 10px; overflow: hidden; background: #fff; display: grid; place-items: center; }
+.pbox .qr svg { width: 100%; height: 100%; display: block; }
+.pbox .qr.off { background: var(--bg); color: var(--dim); border: 1px dashed var(--line2); }
+.pbox .qr.off .ic { width: 34px; height: 34px; }
+.pbox .pt { font-weight: 800; font-size: 15px; }
+.pbox .pu { font-family: var(--mono); font-size: 13px; color: var(--style); overflow-wrap: anywhere; margin: 6px 0 10px; }
 .sstate { min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; letter-spacing: 0; font-weight: 600; }
 .pad { position: relative; min-width: 0; text-align: left; min-height: 74px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line2); cursor: pointer;
   background: linear-gradient(180deg, #1c212c, #151922); color: var(--text); display: flex; flex-direction: column; gap: 6px; transition: transform .08s, box-shadow .15s; }
@@ -396,6 +405,7 @@ details.b .body p { margin: 10px 0 0; }
   <symbol id="i-radial" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.8"/><path d="M12 2.8v3.2M12 18v3.2M2.8 12H6M18 12h3.2M5.5 5.5l2.3 2.3M16.2 16.2l2.3 2.3M5.5 18.5l2.3-2.3M16.2 7.8l2.3-2.3"/></symbol>
   <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.3 6.5a7.6 7.6 0 0 1 0 11"/></symbol>
   <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 15.5V12a8 8 0 0 1 16 0v3.5"/><rect x="3" y="14" width="4.5" height="6.5" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.5"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></symbol>
   <symbol id="i-loader" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5"/></symbol>
 </defs></svg>
 <div class="app">
@@ -858,6 +868,7 @@ PAGES.attekintes = async (el, tk) => {
       <div class="card"><h2><span>Effekt-kártyák</span><button class="btn sm ghost" id="cartStop">${ic("stop", "sm")}Leállít</button></h2><div class="pads" id="carts"><div class="empty">Betöltés</div></div></div>
       <div class="card"><h2>Hírek</h2><div id="ovNews"></div></div>
     </div>
+    <div class="card"><h2><span>Hallgatás telefonon</span><span class="small dim" id="phoneState"></span></h2><div class="phone" id="phone"><div class="empty">Betöltés</div></div></div>
     <div class="card"><h2>Napi műsorrend <span class="small dim">sárga jel: hírblokk</span></h2><div id="ovTimeline"></div></div>
   </div>`;
   stageViz = new AiradioSpectrum($("#stageViz"), { bars: 72, top: 0.34, mode: store.get("airadio.viz") || "bars" });
@@ -875,6 +886,7 @@ PAGES.attekintes = async (el, tk) => {
   renderOverviewLive();
   tickClock();
   loadStyles();
+  S.phoneKey = ""; loadPhone();
 
   const [mix, jingles, backup] = await Promise.all([
     api("GET", "/api/mixer").catch(() => JSON.parse(JSON.stringify(MIX_DEFAULT))),
@@ -955,6 +967,32 @@ function renderOverviewLive() {
       <div class="row"><button class="btn" data-act="dry">${ic("eye", "sm")}Próba (csak szöveg)</button><a class="btn ghost" href="#hirek">Hírtörténet ${ic("arrow", "sm")}</a></div>
     </div>`;
 }
+async function loadPhone() {
+  if (!$("#phone")) return;
+  let x;
+  try { x = await api("GET", "/api/phone"); } catch { return; }
+  const key = JSON.stringify([x.public, x.lan, x.tunnel]);
+  if (key === S.phoneKey || !$("#phone")) return;
+  S.phoneKey = key;
+  const box = (title, url, qr, note) => `<div class="pbox">
+      <div class="qr ${qr ? "" : "off"}">${qr || ic("phone")}</div>
+      <div style="min-width:0"><div class="pt">${title}</div>
+        ${url ? `<div class="pu">${esc(url)}</div><div class="row"><button class="btn sm" data-copy="${esc(url)}">${ic("copy", "sm")}Másolás</button>
+          <a class="btn sm ghost" href="${esc(url)}" target="_blank" rel="noopener">${ic("ext", "sm")}Megnyitás</a></div>` : ""}
+        <div class="small muted" style="margin-top:8px">${note}</div></div></div>`;
+  $("#phone").innerHTML =
+    box("Bárhonnan, mobilnetről is", x.public, x.qr_public,
+      x.public ? "Olvasd be a telefon kamerájával. A cím a Mac vagy a Docker újraindításakor megváltozik, akkor itt az új."
+        : x.tunnel === "indul" ? "Az alagút most indul, pár másodperc múlva itt lesz a cím." : "Nincs beállítva nyilvános alagút.") +
+    box("Otthoni wifin", x.lan, x.qr_lan,
+      x.lan ? "Ha a telefon ugyanazon a wifin van, mint a Mac." : "A Mac wifis címe az automatikus frissítő következő körében jelenik meg.");
+  $("#phoneState").textContent = x.public ? "nyilvános cím aktív" : x.tunnel === "indul" ? "alagút indul" : "";
+}
+setInterval(() => { if (S.page === "attekintes") loadPhone(); }, 10000);
+document.addEventListener("click", async (e) => {
+  const c = e.target.closest("[data-copy]"); if (!c) return;
+  try { await navigator.clipboard.writeText(c.dataset.copy); toast("Cím a vágólapon"); } catch { toast("A másolás nem sikerült", "err"); }
+});
 async function loadStyles() {
   if (!S.styles) {
     try { const x = await api("GET", "/api/styles"); S.styles = x.styles; S.styleGroups = x.groups; } catch { S.styles = null; return; }

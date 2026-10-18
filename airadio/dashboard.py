@@ -186,6 +186,17 @@ def merge_mixer(current: dict, update: dict) -> dict:
     return m
 
 
+def qr_svg(text: str) -> str:
+    """QR-kód SVG-ként (segno); ha a csomag hiányzik, üres."""
+    try:
+        import segno
+    except ImportError:
+        return ""
+    buf = io.BytesIO()
+    segno.make(text, error="m").save(buf, kind="svg", scale=5, border=2, dark="#0b0d12", light="#ffffff", xmldecl=False)
+    return buf.getvalue().decode()
+
+
 def telnet(command: str, port: int, timeout: float = 2.0) -> str:
     """Egy parancs a Liquidsoap helyi telnet-szerverének; a válasz END-ig tart."""
     import socket
@@ -686,6 +697,32 @@ class Dashboard:
             return [f"({path.name} még nincs)"]
         return data.splitlines()[-lines:]
 
+    # hallgatás telefonon
+
+    def phone(self) -> dict:
+        """A hallgatói oldal címei telefonra: nyilvános (alagút) és otthoni wifis, QR-kóddal."""
+        cfg = self.cfg()
+        public, tunnel = None, "nincs"
+        metrics = os.environ.get("AIRADIO_TUNNEL_METRICS", "")
+        if metrics:
+            tunnel = "indul"
+            try:
+                with _no_proxy.open(metrics.rstrip("/") + "/quicktunnel", timeout=2) as resp:
+                    hostname = str(json.load(resp).get("hostname") or "")
+                if re.fullmatch(r"[A-Za-z0-9.-]+", hostname):
+                    public, tunnel = f"https://{hostname}", "fut"
+            except Exception:
+                pass
+        lan = None
+        try:
+            ip = str(json.loads((cfg.data_dir / "host.json").read_text()).get("lan_ip", ""))
+            if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip):
+                lan = f"http://{ip}:{os.environ.get('AIRADIO_PORT', os.environ.get('ICECAST_PORT', '8000'))}"
+        except (FileNotFoundError, json.JSONDecodeError, AttributeError):
+            pass
+        return {"public": public, "tunnel": tunnel, "lan": lan,
+                "qr_public": qr_svg(public) if public else "", "qr_lan": qr_svg(lan) if lan else ""}
+
     def live_info(self, host: str) -> dict:
         port = os.environ.get("AIRADIO_LIVE_PORT") or os.environ.get("LIVE_PORT", "8005")
         return {
@@ -883,6 +920,8 @@ def make_handler(app: Dashboard, password: str):
                     return self._json(app.library_delete(kind, name))
             if method == "GET" and path == "/api/logs":
                 return self._json(app.logs(q.get("source", "radio"), min(int(q.get("lines", 300)), 2000)))
+            if method == "GET" and path == "/api/phone":
+                return self._json(app.phone())
             if method == "GET" and path == "/api/live":
                 host = (self.headers.get("Host") or "localhost").rsplit(":", 1)[0]
                 return self._json(app.live_info(host))

@@ -16,8 +16,22 @@ services:
       AIRADIO_PORT: ${AIRADIO_PORT:-8010}
       AIRADIO_LIVE_PORT: ${AIRADIO_LIVE_PORT:-8015}
       AIRADIO_ADMIN_PORT: ${AIRADIO_ADMIN_PORT:-8020}
+      # A Cloudflare-alagút állapotoldala: innen tudja az irányítópult a nyilvános címet.
+      AIRADIO_TUNNEL_METRICS: http://tunnel:2000
       TZ: Europe/Budapest
     volumes:
       # Itt van a beállítás (config/radio.toml), a tartalék zene (backup/),
       # a letöltött hangok és a hírblokkok; a konténer újraépítése után is megmaradnak.
       - ./data:/var/lib/airadio
+
+  # Nyilvános https-cím a hallgatói oldalhoz (telefonról, mobilnetről is), fiók nélkül:
+  # Cloudflare Quick Tunnel. A cím véletlenszerű, és a konténer újraindulásakor változik;
+  # az irányítópult Stúdió nézete mutatja QR-kóddal. Csak a lejátszó és az adás kerül ki,
+  # az irányítópult nem. Ha nem kell: docker compose stop tunnel
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: airadio-tunnel
+    restart: unless-stopped
+    command: tunnel --metrics 0.0.0.0:2000 --url http://radio:8000
+    depends_on:
+      - radio

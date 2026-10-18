@@ -12,6 +12,7 @@ dependencies = [
     "feedparser>=6.0.11",
     "piper-tts>=1.8",
     "pydantic>=2.9",
+    "segno>=1.6",
 ]
 
 [project.optional-dependencies]

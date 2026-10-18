@@ -16,6 +16,11 @@ main() {
   lock="$dir/data/.frissites.lock"
 
   mkdir -p "$dir/data/log"
+  # A Mac címe a helyi hálózaton: az irányítópult ebből mutatja a wifis címet a telefonnak.
+  local ip host_json
+  ip="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
+  host_json="{\"lan_ip\": \"$ip\"}"
+  [[ $host_json == "$(cat "$dir/data/host.json" 2>/dev/null)" ]] || echo "$host_json" > "$dir/data/host.json"
   # egyszerre csak egy fusson; a fél óránál régebbi zár egy félbemaradt futásé
   find "$lock" -maxdepth 0 -mmin +30 -exec rm -rf {} \; 2>/dev/null
   mkdir "$lock" 2>/dev/null || return 0

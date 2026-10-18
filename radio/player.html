@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0d12">
 <title>AI Rádió</title>
 <link rel="icon" href="data:,">
 <style>
@@ -66,13 +67,28 @@
     : null;
   if (viz) { viz.setPalette("auto"); viz.start(); }
   let actx, wanted = false, retryTimer, stallTimer;
+  // Telefonon nem vezetjük át a hangot a Web Audión: iOS-en lezárt képernyőnél így
+  // elnémulhat. Ott a spektrum az ütemre lüktető mintát mutatja, a hang sima lejátszás.
+  const TOUCH = matchMedia("(pointer: coarse)").matches;
+  const nameEl = document.getElementById("name");
+  function mediaSession(title) {
+    if (!("mediaSession" in navigator) || typeof MediaMetadata === "undefined") return;
+    navigator.mediaSession.metadata = new MediaMetadata({ title: title || nameEl.textContent, artist: nameEl.textContent });
+  }
+  if ("mediaSession" in navigator) {
+    try {
+      navigator.mediaSession.setActionHandler("play", () => { if (!wanted) btn.click(); });
+      navigator.mediaSession.setActionHandler("pause", () => { if (wanted) btn.click(); });
+      navigator.mediaSession.setActionHandler("stop", () => { if (wanted) btn.click(); });
+    } catch (e) { /* nem minden böngésző ismeri mindet */ }
+  }
 
   // Ha a kapcsolat megszakad (alagút, újraindítás), a lejátszó magától újracsatlakozik.
   function connect() {
     clearTimeout(retryTimer);
     // friss kapcsolat, hogy ne a puffer régi része szóljon
     audio.src = MOUNT + "?t=" + Date.now();
-    if (viz && !actx) {
+    if (viz && !actx && !TOUCH) {
       actx = new AudioContext();
       const src = actx.createMediaElementSource(audio), an = actx.createAnalyser();
       an.fftSize = 4096; an.smoothingTimeConstant = 0.55;
@@ -102,7 +118,11 @@
     audio.load();
     setBtn("play", "Lejátszás"); state.textContent = "Szünetel";
   });
-  audio.addEventListener("playing", () => { clearTimeout(stallTimer); setBtn("pause", "Szünet"); state.textContent = "Élő adás"; if (viz) viz.setActive(true); });
+  audio.addEventListener("playing", () => {
+    clearTimeout(stallTimer); setBtn("pause", "Szünet"); state.textContent = "Élő adás";
+    if (viz) viz.setActive(true);
+    mediaSession(document.getElementById("title").textContent);
+  });
   audio.addEventListener("pause", () => { if (viz) viz.setActive(false); if (!wanted) { setBtn("play", "Lejátszás"); state.textContent = "Szünetel"; } });
   audio.addEventListener("waiting", () => {
     state.textContent = "Kapcsolódás";
@@ -119,6 +139,7 @@
       const sources = [].concat(stats.source || []);
       const src = sources.find((s) => (s.listenurl || "").endsWith(MOUNT));
       if (!src) { document.getElementById("title").textContent = "Az adás most nem fut"; return; }
+      if (document.getElementById("title").textContent !== (src.title || "") && wanted) mediaSession(src.title);
       document.getElementById("title").textContent = src.title || "";
       if (viz) viz.setPalette(src.title === "Hírek" || / - Hírek$/.test(src.title || "") ? "news" : "auto");
     } catch (e) { /* a következő körben újra */ }

@@ -289,3 +289,38 @@ def test_style_without_stations_stops_previous(server, tmp_path):
     assert ("stop",) in relay.calls and relay.state()["style"] == "rock"
     status, _ = call(server["url"], "POST", "/api/style/next")
     assert status == 200  # stílus van kiválasztva, csak nem szól
+
+
+def test_phone_addresses(server, monkeypatch):
+    from http.server import BaseHTTPRequestHandler
+
+    _, x = call(server["url"], "GET", "/api/phone")
+    assert x["public"] is None and x["tunnel"] == "nincs" and x["lan"] is None
+
+    class Metrics(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = json.dumps({"hostname": "proba-radio.trycloudflare.com"}).encode() if self.path == "/quicktunnel" else b"{}"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    metrics = ThreadingHTTPServer(("127.0.0.1", 0), Metrics)
+    threading.Thread(target=metrics.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setenv("AIRADIO_TUNNEL_METRICS", f"http://127.0.0.1:{metrics.server_port}")
+        monkeypatch.setenv("AIRADIO_PORT", "8010")
+        server["data"].mkdir(parents=True, exist_ok=True)
+        (server["data"] / "host.json").write_text('{"lan_ip": "192.168.1.23"}')
+        _, x = call(server["url"], "GET", "/api/phone")
+        assert x["public"] == "https://proba-radio.trycloudflare.com" and x["tunnel"] == "fut"
+        assert x["lan"] == "http://192.168.1.23:8010"
+        assert x["qr_public"].startswith("<svg") and x["qr_lan"].startswith("<svg")
+        (server["data"] / "host.json").write_text('{"lan_ip": "nem cím"}')
+        _, x = call(server["url"], "GET", "/api/phone")
+        assert x["lan"] is None
+    finally:
+        metrics.shutdown()
