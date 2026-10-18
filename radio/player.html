@@ -65,31 +65,51 @@
     ? new AiradioSpectrum(document.getElementById("viz"), { mode: "radial", bars: 64, radius: 0.22, glow: 18, bloom: false })
     : null;
   if (viz) { viz.setPalette("auto"); viz.start(); }
-  let actx;
+  let actx, wanted = false, retryTimer, stallTimer;
+
+  // Ha a kapcsolat megszakad (alagút, újraindítás), a lejátszó magától újracsatlakozik.
+  function connect() {
+    clearTimeout(retryTimer);
+    // friss kapcsolat, hogy ne a puffer régi része szóljon
+    audio.src = MOUNT + "?t=" + Date.now();
+    if (viz && !actx) {
+      actx = new AudioContext();
+      const src = actx.createMediaElementSource(audio), an = actx.createAnalyser();
+      an.fftSize = 4096; an.smoothingTimeConstant = 0.55;
+      src.connect(actx.destination); src.connect(an);
+      viz.attach(an);
+    }
+    if (actx) actx.resume();
+    setBtn("loader", "Kapcsolódás");
+    audio.play().catch((e) => {
+      if (e.name !== "NotAllowedError") return;  // hálózati hibánál az error esemény intézi
+      wanted = false; state.textContent = "A lejátszás nem indult el"; setBtn("play", "Lejátszás");
+    });
+  }
+  function reconnect() {
+    if (!wanted) return;
+    clearTimeout(retryTimer); clearTimeout(stallTimer);
+    state.textContent = "Újrakapcsolódás"; setBtn("loader", "Kapcsolódás");
+    retryTimer = setTimeout(connect, 2000);
+  }
 
   btn.addEventListener("click", () => {
-    if (audio.paused) {
-      // friss kapcsolat, hogy ne a puffer régi része szóljon
-      audio.src = MOUNT + "?t=" + Date.now();
-      if (viz && !actx) {
-        actx = new AudioContext();
-        const src = actx.createMediaElementSource(audio), an = actx.createAnalyser();
-        an.fftSize = 4096; an.smoothingTimeConstant = 0.55;
-        src.connect(actx.destination); src.connect(an);
-        viz.attach(an);
-      }
-      if (actx) actx.resume();
-      setBtn("loader", "Kapcsolódás");
-      audio.play().catch(() => { state.textContent = "A lejátszás nem indult el"; setBtn("play", "Lejátszás"); });
-    } else {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-    }
+    wanted = !wanted;
+    if (wanted) { connect(); return; }
+    clearTimeout(retryTimer); clearTimeout(stallTimer);
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    setBtn("play", "Lejátszás"); state.textContent = "Szünetel";
   });
-  audio.addEventListener("playing", () => { setBtn("pause", "Szünet"); state.textContent = "Élő adás"; if (viz) viz.setActive(true); });
-  audio.addEventListener("pause", () => { setBtn("play", "Lejátszás"); state.textContent = "Szünetel"; if (viz) viz.setActive(false); });
-  audio.addEventListener("waiting", () => { state.textContent = "Kapcsolódás"; });
+  audio.addEventListener("playing", () => { clearTimeout(stallTimer); setBtn("pause", "Szünet"); state.textContent = "Élő adás"; if (viz) viz.setActive(true); });
+  audio.addEventListener("pause", () => { if (viz) viz.setActive(false); if (!wanted) { setBtn("play", "Lejátszás"); state.textContent = "Szünetel"; } });
+  audio.addEventListener("waiting", () => {
+    state.textContent = "Kapcsolódás";
+    clearTimeout(stallTimer); stallTimer = setTimeout(reconnect, 12000);
+  });
+  audio.addEventListener("error", reconnect);
+  audio.addEventListener("ended", reconnect);
   document.getElementById("volume").addEventListener("input", (e) => { audio.volume = e.target.value; });
 
   async function refresh() {
