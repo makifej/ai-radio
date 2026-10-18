@@ -11,7 +11,7 @@
   --text: #e7eaf0; --muted: #8e97aa; --dim: #5f687a;
   --accent: #4f8cff; --accent-ink: #fff;
   --onair: #ff4545; --ok: #2fd27a; --warn: #ffb020; --manual: #b48cff;
-  --radius: 12px; --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --radius: 12px; --hdr: 90px; --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
@@ -25,8 +25,8 @@ a { color: var(--accent); }
 /* --- elrendezés --- */
 .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
 header.top { grid-column: 1 / -1; position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 18px;
-  padding: 10px 18px; background: rgba(11,13,18,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-nav.side { border-right: 1px solid var(--line); padding: 14px 10px; position: sticky; top: 57px; height: calc(100vh - 57px); overflow: auto; }
+  height: var(--hdr); padding: 10px 18px; background: rgba(11,13,18,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+nav.side { border-right: 1px solid var(--line); padding: 14px 10px; position: sticky; top: var(--hdr); height: calc(100vh - var(--hdr)); overflow: auto; }
 main { padding: 20px 24px 120px; width: 100%; min-width: 0; }
 nav.side a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--muted);
   text-decoration: none; font-weight: 500; }
@@ -56,15 +56,28 @@ nav.side .sep { height: 1px; background: var(--line); margin: 10px 6px; }
 .stat { text-align: right; white-space: nowrap; }
 .stat .v { font-weight: 700; } .stat .l { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 .clock { font-family: var(--mono); font-size: 22px; font-weight: 600; letter-spacing: .02em; }
-.monitor { display: flex; align-items: center; gap: 10px; padding-left: 14px; border-left: 1px solid var(--line); }
-.mini { width: 132px; height: 34px; display: block; }
+.monitor { display: flex; align-items: center; gap: 14px; padding-left: 18px; border-left: 1px solid var(--line); }
+.mini { width: 190px; height: 52px; display: block; }
+.monitor input[type=range] { width: 96px; accent-color: #6d7cff; }
+
+/* a legfontosabb gomb: monitor lejátszás */
+.bigplay { position: relative; flex: none; width: 68px; height: 68px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #22d3ee, #6366f1 55%, #c084fc);
+  box-shadow: 0 8px 28px rgba(99,102,241,.55), inset 0 1px 0 rgba(255,255,255,.35); transition: transform .15s, box-shadow .15s; }
+.bigplay:hover { transform: scale(1.06); box-shadow: 0 10px 38px rgba(99,102,241,.8), inset 0 1px 0 rgba(255,255,255,.35); }
+.bigplay:active { transform: scale(.96); }
+.bigplay .ic { width: 32px; height: 32px; stroke-width: 2.4; }
+.bigplay.on::before, .bigplay.on::after, .stage-play .disc::before { content: ""; position: absolute; inset: -3px; border-radius: 50%;
+  border: 2px solid rgba(129,140,248,.75); animation: ring 2s ease-out infinite; pointer-events: none; }
+.bigplay.on::after { animation-delay: 1s; }
+@keyframes ring { from { transform: scale(1); opacity: .9; } to { transform: scale(1.32); opacity: 0; } }
 .ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; vertical-align: middle; }
 .ic .fill { fill: currentColor; stroke: none; }
 .ic.sm { width: 15px; height: 15px; } .ic.xs { width: 12px; height: 12px; } .ic.lg { width: 22px; height: 22px; }
 .spinning { animation: rot .9s linear infinite; }
 
 /* színpad: a zenére pulzáló spektrum */
-.stage { position: relative; height: 320px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+.stage { position: relative; height: 400px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
   background: radial-gradient(900px 260px at 20% -20%, rgba(99,102,241,.16), transparent), linear-gradient(180deg, #10131a, #0b0d12); }
 .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stage::after { content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -81,11 +94,25 @@ nav.side .sep { height: 1px; background: var(--line); margin: 10px 6px; }
 .seg button { background: none; border: 0; color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; display: grid; place-items: center; }
 .seg button.on { background: var(--panel2); color: var(--text); }
 .glass { background: rgba(11,13,18,.6); backdrop-filter: blur(6px); }
-.stage-play { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); z-index: 3; display: inline-flex; align-items: center; gap: 10px;
-  padding: 12px 20px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(11,13,18,.55); backdrop-filter: blur(8px); color: var(--text);
-  font-weight: 700; cursor: pointer; transition: transform .15s, background .15s; }
-.stage-play:hover { transform: translate(-50%, -50%) scale(1.04); background: rgba(79,140,255,.25); }
-.stage.playing .stage-play { display: none; }
+.stage-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center;
+  gap: 14px; padding: 0; border: 0; background: none; color: var(--text); cursor: pointer; font-size: 12px; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; transition: opacity .25s; }
+.stage-play .disc { position: relative; width: 170px; height: 170px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, #22d3ee, #6366f1 55%, #c084fc); transition: transform .18s, box-shadow .18s;
+  box-shadow: 0 20px 70px rgba(99,102,241,.6), 0 0 0 12px rgba(99,102,241,.14), inset 0 2px 0 rgba(255,255,255,.35); }
+.stage-play .disc::before { inset: -14px; }
+.stage-play .disc .ic { width: 76px; height: 76px; stroke-width: 2.2; }
+.stage-play:hover .disc { transform: scale(1.06); box-shadow: 0 24px 90px rgba(99,102,241,.85), 0 0 0 16px rgba(99,102,241,.2), inset 0 2px 0 rgba(255,255,255,.35); }
+.stage-play:active .disc { transform: scale(.96); }
+.stage-play .cap { white-space: nowrap; text-shadow: 0 2px 14px rgba(0,0,0,.8); }
+.stage:not(.playing) #ovHeroText { max-width: calc(50% - 110px); }
+.stage.playing .stage-play { opacity: 0; }
+.stage.playing:hover .stage-play, .stage.playing .stage-play:focus-visible { opacity: 1; }
+.stage.playing .stage-play .disc { width: 128px; height: 128px; background: rgba(11,13,18,.5); border: 1px solid rgba(255,255,255,.22);
+  backdrop-filter: blur(8px); box-shadow: 0 16px 50px rgba(0,0,0,.45); }
+.stage.playing .stage-play .disc::before { display: none; }
+.stage.playing .stage-play .disc .ic { width: 56px; height: 56px; }
+@media (hover: none) { .stage.playing .stage-play { opacity: .75; } }
 .stage:fullscreen { height: 100vh; border-radius: 0; border: 0; }
 .stage:fullscreen .stage-ui { padding: 48px 56px; }
 .stage:fullscreen .title { font-size: clamp(36px, 5vw, 72px); }
@@ -288,9 +315,11 @@ details.b .body p { margin: 10px 0 0; }
   nav.side .sep { display: none; }
   main { padding: 16px 16px 120px; }
   .g2, .g3, .g4 { grid-template-columns: 1fr; } .span2 { grid-column: auto; }
-  header.top { flex-wrap: wrap; gap: 10px; } .np { order: 9; flex-basis: 100%; }
+  header.top { flex-wrap: wrap; gap: 10px; height: auto; } .np { order: 9; flex-basis: 100%; }
+  .bigplay { width: 60px; height: 60px; } .monitor input[type=range] { width: 80px; }
   .stat.hide-sm, .monitor .mini { display: none; }
-  .stage { height: 420px; } .stage-top { flex-direction: column; } .stage .actions { min-width: 0; width: 100%; } .stage .title { font-size: 24px; }
+  .stage { height: 580px; } .stage-top { flex-direction: column; } .stage:not(.playing) #ovHeroText { max-width: none; }
+  .stage-play { top: 62%; } .stage-play .disc { width: 132px; height: 132px; } .stage-play .disc .ic { width: 60px; height: 60px; } .stage .actions { min-width: 0; width: 100%; } .stage .title { font-size: 24px; }
 }
 </style>
 </head>
@@ -342,10 +371,10 @@ details.b .body p { margin: 10px 0 0; }
     <div class="stat hide-sm"><div class="v" id="hListeners">–</div><div class="l">Hallgató</div></div>
     <div class="clock" id="hClock">--:--:--</div>
     <div class="monitor">
-      <button class="btn round primary" id="monBtn" aria-label="Monitor lejátszása"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg></button>
+      <button class="bigplay" id="monBtn" aria-label="Monitor lejátszása"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg></button>
       <canvas class="mini" id="miniViz" aria-hidden="true"></canvas>
       <svg class="ic sm muted" aria-hidden="true"><use href="#i-volume"/></svg>
-      <input type="range" id="monVol" min="0" max="1" step="0.01" value="0.8" aria-label="Monitor hangerő" style="width:70px">
+      <input type="range" id="monVol" min="0" max="1" step="0.01" value="0.8" aria-label="Monitor hangerő">
     </div>
   </header>
 
@@ -455,7 +484,19 @@ async function pollStatus() {
 const mon = $("#monitor"); let actx, analyser, stageViz = null;
 const miniViz = new AiradioSpectrum($("#miniViz"), { bars: 22, reflection: false, peaks: false, glow: 8, bloom: false });
 miniViz.start();
-const setMonBtn = (icon, label) => { $("#monBtn").innerHTML = ic(icon, icon === "loader" ? "spinning" : ""); $("#monBtn").setAttribute("aria-label", label); };
+const MON_CAP = { play: "Monitor bekapcsolása", pause: "Monitor leállítása", loader: "Kapcsolódás" };
+let monIcon = "play";
+function paintStagePlay() {
+  const b = $("#stagePlay"); if (!b) return;
+  b.innerHTML = `<span class="disc">${ic(monIcon, monIcon === "loader" ? "spinning" : "")}</span><span class="cap">${MON_CAP[monIcon]}</span>`;
+  b.setAttribute("aria-label", MON_CAP[monIcon]);
+}
+const setMonBtn = (icon, label) => {
+  monIcon = icon;
+  $("#monBtn").innerHTML = ic(icon, icon === "loader" ? "spinning" : ""); $("#monBtn").setAttribute("aria-label", label);
+  $("#monBtn").classList.toggle("on", icon === "pause");
+  paintStagePlay();
+};
 function monitorToggle() {
   if (mon.paused) {
     mon.src = "/stream?t=" + Date.now(); mon.volume = +$("#monVol").value;
@@ -755,7 +796,7 @@ PAGES.attekintes = async (el, tk) => {
             <button class="btn icon glass" id="vizFull" aria-label="Teljes képernyő" title="Teljes képernyő">${ic("max", "sm")}</button>
           </div>
         </div>
-        <button class="stage-play" id="stagePlay">${ic("headphones")}Monitor bekapcsolása</button>
+        <button class="stage-play" id="stagePlay"></button>
       </section>
       <aside class="card clockcard">
         <div><div class="bigclock mono" id="stClock">--:--</div><div class="muted small" id="stDate"></div></div>
@@ -780,7 +821,8 @@ PAGES.attekintes = async (el, tk) => {
   const syncSeg = () => el.querySelectorAll("[data-viz]").forEach((b) => b.classList.toggle("on", b.dataset.viz === stageViz.mode));
   el.querySelectorAll("[data-viz]").forEach((b) => b.onclick = () => { stageViz.setMode(b.dataset.viz); store.set("airadio.viz", b.dataset.viz); syncSeg(); });
   syncSeg();
-  $("#stagePlay").onclick = () => { if (mon.paused) monitorToggle(); };
+  paintStagePlay();
+  $("#stagePlay").onclick = monitorToggle;
   $("#vizFull").onclick = () => document.fullscreenElement ? document.exitFullscreen() : $("#stage").requestFullscreen().catch(() => toast("A teljes képernyő nem érhető el", "err"));
   $("#cartStop").onclick = () => api("POST", "/api/cart", { stop: true }).catch((e) => toast(e.message, "err"));
   renderOverviewLive();
