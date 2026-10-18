@@ -6,53 +6,90 @@
 <title>AI Rádió</title>
 <link rel="icon" href="data:,">
 <style>
-  :root { --bg: #f6f5f2; --card: #fff; --text: #1d1d1f; --muted: #6e6e73; --accent: #c2410c; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #161616; --card: #222; --text: #f2f2f2; --muted: #a1a1a6; --accent: #fb923c; }
-  }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg);
-         color: var(--text); font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  main { width: min(420px, calc(100vw - 32px)); background: var(--card); border-radius: 20px;
-         padding: 32px 28px; box-shadow: 0 8px 30px rgba(0,0,0,.08); text-align: center; }
-  h1 { margin: 0 0 4px; font-size: 26px; }
-  #state { margin: 0 0 24px; color: var(--muted); font-size: 14px; }
-  button { width: 88px; height: 88px; border-radius: 50%; border: 0; background: var(--accent);
-           color: #fff; font-size: 34px; cursor: pointer; }
-  button:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
-  #title { margin: 24px 0 0; min-height: 1.4em; font-weight: 600; overflow-wrap: anywhere; }
-  #volume { width: 100%; margin-top: 24px; accent-color: var(--accent); }
+  :root { --bg: #0b0d12; --card: #12151c; --line: #232a36; --text: #e7eaf0; --muted: #8e97aa; --accent: #6366f1; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; color: var(--text);
+         background: radial-gradient(900px 500px at 50% -10%, rgba(99,102,241,.18), transparent), var(--bg);
+         font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  main { width: min(440px, calc(100vw - 32px)); background: var(--card); border: 1px solid var(--line); border-radius: 24px;
+         padding: 18px 24px 26px; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+  .viz { position: relative; width: 100%; aspect-ratio: 1; max-width: 360px; margin: 0 auto; }
+  .viz canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 92px; height: 92px; border-radius: 50%; border: 0;
+          cursor: pointer; color: #fff; display: grid; place-items: center;
+          background: linear-gradient(135deg, #22d3ee, #6366f1 55%, #c084fc); box-shadow: 0 10px 40px rgba(99,102,241,.45); transition: transform .15s; }
+  #play:hover { transform: translate(-50%, -50%) scale(1.05); }
+  #play:focus-visible { outline: 3px solid var(--text); outline-offset: 4px; }
+  .ic { width: 34px; height: 34px; fill: currentColor; }
+  .ic.sm { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .spin { animation: rot .9s linear infinite; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  h1 { margin: 6px 0 2px; font-size: 24px; letter-spacing: -.01em; }
+  #state { margin: 0; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+  #title { margin: 14px 0 0; min-height: 1.4em; font-weight: 600; overflow-wrap: anywhere; }
+  .vol { display: flex; align-items: center; gap: 10px; margin-top: 20px; color: var(--muted); }
+  #volume { flex: 1; accent-color: var(--accent); }
 </style>
 </head>
 <body>
 <main>
+  <div class="viz">
+    <canvas id="viz" aria-hidden="true"></canvas>
+    <button id="play" aria-label="Lejátszás"></button>
+  </div>
   <h1 id="name">AI Rádió</h1>
   <p id="state">Kattints a lejátszáshoz</p>
-  <button id="play" aria-label="Lejátszás">▶</button>
   <p id="title"></p>
-  <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Hangerő">
+  <div class="vol">
+    <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.3 6.5a7.6 7.6 0 0 1 0 11"/></svg>
+    <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Hangerő">
+  </div>
 </main>
+<script src="/viz.js"></script>
 <script>
   const MOUNT = "/radio.mp3";
+  const ICONS = {
+    play: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.6v12.8a.8.8 0 0 0 1.2.7l10-6.4a.8.8 0 0 0 0-1.4l-10-6.4A.8.8 0 0 0 8 5.6z"/></svg>',
+    pause: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="3.6" height="14" rx="1"/><rect x="13.9" y="5" width="3.6" height="14" rx="1"/></svg>',
+    loader: '<svg class="ic spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5"/></svg>',
+  };
   const audio = new Audio();
   audio.preload = "none";
   audio.volume = 0.8;
   const btn = document.getElementById("play");
   const state = document.getElementById("state");
+  const setBtn = (icon, label) => { btn.innerHTML = ICONS[icon]; btn.setAttribute("aria-label", label); };
+  setBtn("play", "Lejátszás");
+
+  const viz = window.AiradioSpectrum
+    ? new AiradioSpectrum(document.getElementById("viz"), { mode: "radial", bars: 64, radius: 0.2, glow: 18, bloom: false })
+    : null;
+  if (viz) { viz.setPalette("auto"); viz.start(); }
+  let actx;
 
   btn.addEventListener("click", () => {
     if (audio.paused) {
       // friss kapcsolat, hogy ne a puffer régi része szóljon
       audio.src = MOUNT + "?t=" + Date.now();
-      audio.play().catch(() => { state.textContent = "A lejátszás nem indult el"; });
+      if (viz && !actx) {
+        actx = new AudioContext();
+        const src = actx.createMediaElementSource(audio), an = actx.createAnalyser();
+        an.fftSize = 4096; an.smoothingTimeConstant = 0.55;
+        src.connect(actx.destination); src.connect(an);
+        viz.attach(an);
+      }
+      if (actx) actx.resume();
+      setBtn("loader", "Kapcsolódás");
+      audio.play().catch(() => { state.textContent = "A lejátszás nem indult el"; setBtn("play", "Lejátszás"); });
     } else {
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
     }
   });
-  audio.addEventListener("playing", () => { btn.textContent = "❚❚"; btn.setAttribute("aria-label", "Szünet"); state.textContent = "Élő adás"; });
-  audio.addEventListener("pause", () => { btn.textContent = "▶"; btn.setAttribute("aria-label", "Lejátszás"); state.textContent = "Szünetel"; });
-  audio.addEventListener("waiting", () => { state.textContent = "Kapcsolódás…"; });
+  audio.addEventListener("playing", () => { setBtn("pause", "Szünet"); state.textContent = "Élő adás"; if (viz) viz.setActive(true); });
+  audio.addEventListener("pause", () => { setBtn("play", "Lejátszás"); state.textContent = "Szünetel"; if (viz) viz.setActive(false); });
+  audio.addEventListener("waiting", () => { state.textContent = "Kapcsolódás"; });
   document.getElementById("volume").addEventListener("input", (e) => { audio.volume = e.target.value; });
 
   async function refresh() {
@@ -63,6 +100,7 @@
       const src = sources.find((s) => (s.listenurl || "").endsWith(MOUNT));
       if (!src) { document.getElementById("title").textContent = "Az adás most nem fut"; return; }
       document.getElementById("title").textContent = src.title || "";
+      if (viz) viz.setPalette(src.title === "Hírek" || / - Hírek$/.test(src.title || "") ? "news" : "auto");
     } catch (e) { /* a következő körben újra */ }
   }
   refresh();

@@ -20,7 +20,7 @@ fi
 echo "== Csomagok"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
-apt-get install -y -q liquidsoap icecast2 ffmpeg python3-venv iptables-persistent openssl rsync
+apt-get install -y -q liquidsoap icecast2 ffmpeg python3-venv iptables-persistent openssl rsync media-types
 
 # Az Ubuntu saját icecast2 szolgáltatása helyett a sajátunk fut, saját beállítással.
 systemctl disable --now icecast2 2>/dev/null || true
@@ -41,7 +41,7 @@ echo "== Program"
 install -d "$APP"
 rsync -a --delete "$REPO/radio/" "$APP/radio/"
 # Böngészős lejátszó az Icecast gyökércímén (http://<szerver>:8000/)
-install -m 644 "$REPO/radio/player.html" /usr/share/icecast2/web/player.html
+install -m 644 "$REPO/radio/player.html" "$REPO/airadio/web/viz.js" /usr/share/icecast2/web/
 [[ -d $APP/venv ]] || python3 -m venv "$APP/venv"
 "$APP/venv/bin/pip" install -q --upgrade pip
 "$APP/venv/bin/pip" install -q "$REPO"

@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      liquidsoap icecast2 ffmpeg python3-venv openssl tzdata ca-certificates \
+      liquidsoap icecast2 ffmpeg python3-venv openssl tzdata ca-certificates media-types \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --system --home-dir /var/lib/airadio --shell /usr/sbin/nologin airadio
 
@@ -23,7 +23,8 @@ RUN python3 -m venv venv \
 COPY radio ./radio
 COPY config ./config
 COPY deploy ./deploy
-RUN cp radio/player.html /usr/share/icecast2/web/player.html
+# Hallgatói lejátszó és a spektrum-megjelenítő az Icecast gyökércímén
+RUN cp radio/player.html airadio/web/viz.js /usr/share/icecast2/web/
 
 VOLUME /var/lib/airadio
 EXPOSE 8000 8005 8080

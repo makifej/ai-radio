@@ -17,7 +17,7 @@ A kész fájl `/var/lib/airadio/news/hirek-ÉÉÉÉHHNN-ÓÓ.wav`; a Liquidsoap 
 
 ## Irányítópult
 
-Egy webes stúdiófelületen állítható minden, szerkesztés nélkül. Az **Áttekintés** mutatja, mi szól most (automata, kézi, hírek, élő adás, tartalék), a napi műsorrendet és a hallgatók számát. Innen indítható azonnali hírblokk, megállítható egy éppen szóló hír, választható kézzel állomás, és vissza lehet állni az automatára. A fejlécben monitor fül és hangszintmérő van.
+Egy webes stúdiófelületen állítható minden, szerkesztés nélkül. Az **Áttekintés** mutatja, mi szól most (automata, kézi, hírek, élő adás, tartalék), a napi műsorrendet és a hallgatók számát. Innen indítható azonnali hírblokk, megállítható egy éppen szóló hír, választható kézzel állomás, és vissza lehet állni az automatára. A tetején a zenére pulzáló spektrum látszik: oszlop, hullám és kör stílusban, a műsor állapotához igazodó színekkel. Teljes képernyőre is nagyítható. A fejlécben monitor és mini spektrum van. A hallgatói lejátszón a Play gomb körül kör alakú spektrum lüktet.
 
 Az **Állomások** lapon napszakonként rendezhetők és kipróbálhatók az adók. Itt lehet keresni a Radio Browser katalógusában, és az „Alkalmazás” gombbal egy pár másodperces újraindítással élesíteni a változást. A **Hírek** lapon beállítható, mely órákban legyen hír, milyen forrásokból, melyik Claude-modellel és milyen gondolkodási szinttel. Itt látszik a hírtörténet a szövegekkel, visszahallgatható hanganyaggal és a Claude-költséggel (napi, havi és összesített bontásban).
 

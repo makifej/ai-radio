@@ -24,7 +24,7 @@ airadio = "airadio.cli:main"
 include = ["airadio*"]
 
 [tool.setuptools.package-data]
-airadio = ["web/*.html"]
+airadio = ["web/*.html", "web/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

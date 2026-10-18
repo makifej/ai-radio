@@ -32,11 +32,13 @@ nav.side a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; b
   text-decoration: none; font-weight: 500; }
 nav.side a:hover { background: var(--panel2); color: var(--text); }
 nav.side a.active { background: var(--panel2); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
-nav.side .ico { width: 18px; text-align: center; opacity: .9; }
+nav.side .ic { opacity: .85; }
+nav.side a.active .ic { opacity: 1; color: var(--accent); }
 nav.side .sep { height: 1px; background: var(--line); margin: 10px 6px; }
 
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; min-width: 190px; }
-.brand .logo { width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, #ff4545, #ffb020); display: grid; place-items: center; font-size: 13px; }
+.brand .logo { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #22d3ee, #6366f1 55%, #c084fc); display: grid; place-items: center; color: #fff; }
+.brand .logo .ic { width: 17px; height: 17px; stroke-width: 2; }
 .onair { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 6px; font-weight: 800;
   letter-spacing: .08em; font-size: 12px; border: 1px solid var(--line2); color: var(--muted); white-space: nowrap; }
 .onair .lamp { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); }
@@ -55,9 +57,39 @@ nav.side .sep { height: 1px; background: var(--line); margin: 10px 6px; }
 .stat .v { font-weight: 700; } .stat .l { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 .clock { font-family: var(--mono); font-size: 22px; font-weight: 600; letter-spacing: .02em; }
 .monitor { display: flex; align-items: center; gap: 10px; padding-left: 14px; border-left: 1px solid var(--line); }
-.vu { display: grid; gap: 3px; width: 110px; }
-.vu i { display: block; height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; position: relative; }
-.vu i b { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--ok) 0 65%, var(--warn) 65% 85%, var(--onair) 85%); background-size: 110px 100%; }
+.mini { width: 132px; height: 34px; display: block; }
+.ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; vertical-align: middle; }
+.ic .fill { fill: currentColor; stroke: none; }
+.ic.sm { width: 15px; height: 15px; } .ic.xs { width: 12px; height: 12px; } .ic.lg { width: 22px; height: 22px; }
+.spinning { animation: rot .9s linear infinite; }
+
+/* színpad: a zenére pulzáló spektrum */
+.stage { position: relative; height: 320px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+  background: radial-gradient(900px 260px at 20% -20%, rgba(99,102,241,.16), transparent), linear-gradient(180deg, #10131a, #0b0d12); }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(11,13,18,.82) 0%, rgba(11,13,18,.35) 38%, rgba(11,13,18,0) 60%); }
+.stage-ui { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; padding: 20px 22px; pointer-events: none; }
+.stage-ui > * { pointer-events: auto; }
+.stage-top { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+.stage .src { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.stage .title { font-size: 30px; font-weight: 760; line-height: 1.15; margin: 6px 0 4px; overflow-wrap: anywhere; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
+.stage .meta { color: var(--muted); }
+.stage .actions { display: grid; gap: 8px; min-width: 220px; }
+.stage-tools { margin-top: auto; display: flex; justify-content: flex-end; gap: 8px; }
+.seg { display: inline-flex; background: rgba(11,13,18,.6); border: 1px solid var(--line2); border-radius: 9px; padding: 3px; backdrop-filter: blur(6px); }
+.seg button { background: none; border: 0; color: var(--muted); padding: 6px 9px; border-radius: 6px; cursor: pointer; display: grid; place-items: center; }
+.seg button.on { background: var(--panel2); color: var(--text); }
+.glass { background: rgba(11,13,18,.6); backdrop-filter: blur(6px); }
+.stage-play { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); z-index: 3; display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 20px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(11,13,18,.55); backdrop-filter: blur(8px); color: var(--text);
+  font-weight: 700; cursor: pointer; transition: transform .15s, background .15s; }
+.stage-play:hover { transform: translate(-50%, -50%) scale(1.04); background: rgba(79,140,255,.25); }
+.stage.playing .stage-play { display: none; }
+.stage:fullscreen { height: 100vh; border-radius: 0; border: 0; }
+.stage:fullscreen .stage-ui { padding: 48px 56px; }
+.stage:fullscreen .title { font-size: clamp(36px, 5vw, 72px); }
+.stage:fullscreen .actions { display: none; }
 
 /* --- elemek --- */
 h1 { font-size: 22px; margin: 0 0 4px; }
@@ -129,12 +161,6 @@ table.t tr:hover td { background: rgba(255,255,255,.015); }
 .hours button.on { background: rgba(255,176,32,.14); border-color: var(--warn); color: var(--warn); font-weight: 700; }
 
 /* hero */
-.hero { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; background:
-  radial-gradient(1200px 200px at 0% 0%, rgba(79,140,255,.10), transparent), var(--panel); }
-.hero .src { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.hero .title { font-size: 26px; font-weight: 750; line-height: 1.2; margin: 6px 0; overflow-wrap: anywhere; }
-.hero .meta { color: var(--muted); }
-.hero .actions { display: grid; gap: 8px; min-width: 210px; }
 
 /* napló */
 .log { background: #07090c; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; height: 62vh; overflow: auto;
@@ -174,37 +200,76 @@ details.b .body p { margin: 10px 0 0; }
   nav.side .sep { display: none; }
   main { padding: 16px 16px 120px; }
   .g2, .g3, .g4 { grid-template-columns: 1fr; } .span2 { grid-column: auto; }
-  .hero { grid-template-columns: 1fr; } header.top { flex-wrap: wrap; gap: 10px; } .np { order: 9; flex-basis: 100%; }
-  .stat.hide-sm, .monitor .vu { display: none; }
+  header.top { flex-wrap: wrap; gap: 10px; } .np { order: 9; flex-basis: 100%; }
+  .stat.hide-sm, .monitor .mini { display: none; }
+  .stage { height: 420px; } .stage-top { flex-direction: column; } .stage .actions { min-width: 0; width: 100%; } .stage .title { font-size: 24px; }
 }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-logo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></symbol>
+  <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-stations" viewBox="0 0 24 24"><path d="M12 12.5V21M8.5 21h7"/><circle cx="12" cy="10" r="2"/><path d="M8.3 6.3a5.3 5.3 0 0 0 0 7.4M15.7 6.3a5.3 5.3 0 0 1 0 7.4M5.5 3.5a9.2 9.2 0 0 0 0 13M18.5 3.5a9.2 9.2 0 0 1 0 13"/></symbol>
+  <symbol id="i-news" viewBox="0 0 24 24"><path d="M4 5h12.5v14H6a2 2 0 0 1-2-2V5z"/><path d="M16.5 9H20v8a2 2 0 0 1-2 2"/><path d="M7.5 9h5.5M7.5 12.5h5.5M7.5 16h3.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 17.5V5.5l11-2v12"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="15.5" r="2.5"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" class="fill"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path class="fill" d="M8 5.6v12.8a.8.8 0 0 0 1.2.7l10-6.4a.8.8 0 0 0 0-1.4l-10-6.4A.8.8 0 0 0 8 5.6z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect class="fill" x="6.5" y="5" width="3.6" height="14" rx="1"/><rect class="fill" x="13.9" y="5" width="3.6" height="14" rx="1"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect class="fill" x="6.5" y="6.5" width="11" height="11" rx="2"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path class="fill" d="M6 6.2v11.6a.8.8 0 0 0 1.2.7l8.5-5.8a.8.8 0 0 0 0-1.4L7.2 5.5A.8.8 0 0 0 6 6.2z"/><path d="M18.5 5.5v13"/></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4.5v4.2h4.2"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M6.5 14.5l5.5-5.5 5.5 5.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6.5 9.5l5.5 5.5 5.5-5.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5.5 12.5l4 4L18.5 7.5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4.5M7.5 9L12 4.5 16.5 9"/><path d="M4.5 15v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4.5V15M7.5 10.5L12 15l4.5-4.5"/><path d="M4.5 15v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5l-8.5 8.5"/><path d="M17.5 14v4a2 2 0 0 1-2 2H6.5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h13.5M13 6.5l5.5 5.5-5.5 5.5"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9.5 6.5l5.5 5.5-5.5 5.5"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-min" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20v-6M9.7 20V8M14.3 20v-9M19 20V4"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2.5 12c2.4 0 2.4-6 4.8-6s2.4 12 4.8 12 2.4-9 4.8-9 2.3 3 4.6 3"/></symbol>
+  <symbol id="i-radial" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.8"/><path d="M12 2.8v3.2M12 18v3.2M2.8 12H6M18 12h3.2M5.5 5.5l2.3 2.3M16.2 16.2l2.3 2.3M5.5 18.5l2.3-2.3M16.2 7.8l2.3-2.3"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.3 6.5a7.6 7.6 0 0 1 0 11"/></symbol>
+  <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 15.5V12a8 8 0 0 1 16 0v3.5"/><rect x="3" y="14" width="4.5" height="6.5" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.5"/></symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5"/></symbol>
+</defs></svg>
 <div class="app">
   <header class="top">
-    <div class="brand"><span class="logo">📻</span><span id="hName">AI Rádió</span></div>
+    <div class="brand"><span class="logo"><svg class="ic" aria-hidden="true"><use href="#i-logo"/></svg></span><span id="hName">AI Rádió</span></div>
     <span id="hOnair" class="onair down"><span class="lamp"></span><span>KAPCSOLÓDÁS</span></span>
     <div class="np"><div class="t" id="hTitle">–</div><div class="s" id="hSub">–</div></div>
     <div class="stat hide-md"><div class="v" id="hNext">–</div><div class="l">Következő hír</div></div>
     <div class="stat hide-sm"><div class="v" id="hListeners">–</div><div class="l">Hallgató</div></div>
     <div class="clock" id="hClock">--:--:--</div>
     <div class="monitor">
-      <button class="btn round primary" id="monBtn" aria-label="Monitor lejátszása">▶</button>
-      <div class="vu" aria-hidden="true"><i><b id="vuL"></b></i><i><b id="vuR"></b></i></div>
+      <button class="btn round primary" id="monBtn" aria-label="Monitor lejátszása"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg></button>
+      <canvas class="mini" id="miniViz" aria-hidden="true"></canvas>
+      <svg class="ic sm muted" aria-hidden="true"><use href="#i-volume"/></svg>
       <input type="range" id="monVol" min="0" max="1" step="0.01" value="0.8" aria-label="Monitor hangerő" style="width:70px">
     </div>
   </header>
 
   <nav class="side" id="nav">
-    <a href="#attekintes" data-p="attekintes"><span class="ico">◉</span>Áttekintés</a>
-    <a href="#allomasok" data-p="allomasok"><span class="ico">📡</span>Állomások</a>
-    <a href="#hirek" data-p="hirek"><span class="ico">📰</span>Hírek</a>
-    <a href="#napszakok" data-p="napszakok"><span class="ico">🕘</span>Napszakok</a>
-    <a href="#hangok" data-p="hangok"><span class="ico">🎙</span>Hangok</a>
-    <a href="#zenetar" data-p="zenetar"><span class="ico">🎵</span>Zenetár</a>
-    <a href="#elo" data-p="elo"><span class="ico">🔴</span>Élő adás</a>
+    <a href="#attekintes" data-p="attekintes"><svg class="ic" aria-hidden="true"><use href="#i-overview"/></svg>Áttekintés</a>
+    <a href="#allomasok" data-p="allomasok"><svg class="ic" aria-hidden="true"><use href="#i-stations"/></svg>Állomások</a>
+    <a href="#hirek" data-p="hirek"><svg class="ic" aria-hidden="true"><use href="#i-news"/></svg>Hírek</a>
+    <a href="#napszakok" data-p="napszakok"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Napszakok</a>
+    <a href="#hangok" data-p="hangok"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg>Hangok</a>
+    <a href="#zenetar" data-p="zenetar"><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg>Zenetár</a>
+    <a href="#elo" data-p="elo"><svg class="ic" aria-hidden="true"><use href="#i-live"/></svg>Élő adás</a>
     <div class="sep"></div>
-    <a href="#naplo" data-p="naplo"><span class="ico">≡</span>Napló</a>
+    <a href="#naplo" data-p="naplo"><svg class="ic" aria-hidden="true"><use href="#i-log"/></svg>Napló</a>
   </nav>
 
   <main id="main"></main>
@@ -221,6 +286,7 @@ details.b .body p { margin: 10px 0 0; }
 <audio id="monitor" preload="none" crossorigin="anonymous"></audio>
 <audio id="preview" preload="none"></audio>
 
+<script src="/viz.js"></script>
 <script>
 "use strict";
 const $ = (s, el = document) => el.querySelector(s);
@@ -230,6 +296,7 @@ const fmtTime = (iso) => { if (!iso) return "–"; const d = new Date(iso); retu
 const fmtDate = (iso) => { const d = new Date(iso); return `${d.getMonth() + 1}.${pad(d.getDate())}. ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const fmtBytes = (b) => b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.round(b / 1e3) + " kB";
 const usd = (v) => "$" + (v ?? 0).toFixed(v >= 1 ? 2 : 3);
+const ic = (name, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
 const S = { status: null, cfg: null, saved: null, dirty: false, page: "attekintes", dpTab: 0, logSrc: "radio", logAuto: true, voices: [], seq: 0, skew: 0 };
 // Lassabb oldal ne írja felül a közben megnyitott másikat.
@@ -282,7 +349,9 @@ function renderHeader() {
   $("#hTitle").textContent = t || (oa.src === "tartalek" ? "Tartalék zene" : r.station || "–");
   $("#hSub").textContent = r.station ? `${t ? r.station + " · " : ""}${r.daypart || ""}` : (st.icecast.up ? "" : "Az Icecast nem válaszol");
   const n = st.news.next;
-  $("#hNext").textContent = n ? `${fmtTime(n.slot)} ${n.ready ? "✓" : ""}` : "nincs";
+  $("#hNext").innerHTML = n ? `${fmtTime(n.slot)}${n.ready ? " " + ic("check", "xs") : ""}` : "nincs";
+  const pal = { live: "live", news: "news", manual: "manual", auto: "auto", down: "idle" }[oa.cls] || "auto";
+  [miniViz, stageViz].forEach((v) => v && v.setPalette(pal));
   $("#hListeners").textContent = st.icecast.on_air ? st.icecast.listeners : "–";
 }
 setInterval(() => { const d = serverNow(); $("#hClock").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }, 250);
@@ -294,36 +363,41 @@ async function pollStatus() {
 }
 
 /* ---------------- monitor + VU ---------------- */
-const mon = $("#monitor"); let actx, anL, anR;
-$("#monBtn").onclick = () => {
+const mon = $("#monitor"); let actx, analyser, stageViz = null;
+const miniViz = new AiradioSpectrum($("#miniViz"), { bars: 22, reflection: false, peaks: false, glow: 8, bloom: false });
+miniViz.start();
+const setMonBtn = (icon, label) => { $("#monBtn").innerHTML = ic(icon, icon === "loader" ? "spinning" : ""); $("#monBtn").setAttribute("aria-label", label); };
+function monitorToggle() {
   if (mon.paused) {
     mon.src = "/stream?t=" + Date.now(); mon.volume = +$("#monVol").value;
     if (!actx) {
       actx = new AudioContext();
-      const src = actx.createMediaElementSource(mon), split = actx.createChannelSplitter(2);
-      anL = actx.createAnalyser(); anR = actx.createAnalyser(); anL.fftSize = anR.fftSize = 1024;
-      src.connect(actx.destination); src.connect(split); split.connect(anL, 0); split.connect(anR, 1);
+      const src = actx.createMediaElementSource(mon);
+      analyser = actx.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0.55;
+      src.connect(actx.destination); src.connect(analyser);
+      [miniViz, stageViz].forEach((v) => v && v.attach(analyser));
     }
     actx.resume(); $("#preview").pause();
-    mon.play().catch(() => toast("A monitor nem indult el", "err"));
+    setMonBtn("loader", "Kapcsolódás");
+    mon.play().catch(() => { toast("A monitor nem indult el", "err"); setMonBtn("play", "Monitor lejátszása"); });
   } else { mon.pause(); mon.removeAttribute("src"); mon.load(); }
-};
-mon.onwaiting = () => { $("#monBtn").textContent = "…"; };
-mon.onplaying = () => { $("#monBtn").textContent = "❚❚"; $("#monBtn").setAttribute("aria-label", "Monitor leállítása"); vuLoop(); };
-mon.onpause = () => { $("#monBtn").textContent = "▶"; $("#monBtn").setAttribute("aria-label", "Monitor lejátszása"); $("#vuL").style.width = $("#vuR").style.width = "0"; };
+}
+$("#monBtn").onclick = monitorToggle;
+const vizActive = (on) => { [miniViz, stageViz].forEach((v) => v && v.setActive(on)); const st = $("#stage"); if (st) st.classList.toggle("playing", on); };
+mon.onwaiting = () => setMonBtn("loader", "Kapcsolódás");
+mon.onplaying = () => { setMonBtn("pause", "Monitor leállítása"); vizActive(true); };
+mon.onpause = () => { setMonBtn("play", "Monitor lejátszása"); vizActive(false); };
 $("#monVol").oninput = (e) => mon.volume = +e.target.value;
-const buf = new Float32Array(1024);
-function level(an) { an.getFloatTimeDomainData(buf); let s = 0; for (const v of buf) s += v * v; const db = 20 * Math.log10(Math.sqrt(s / buf.length) + 1e-6); return Math.max(0, Math.min(1, (db + 48) / 48)); }
-function vuLoop() { if (mon.paused) return; $("#vuL").style.width = (level(anL) * 100) + "%"; $("#vuR").style.width = (level(anR) * 100) + "%"; requestAnimationFrame(vuLoop); }
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
 const pv = $("#preview"); let pvBtn = null;
 function preview(url, btn) {
-  if (pvBtn) pvBtn.textContent = "▶";
+  if (pvBtn) pvBtn.innerHTML = ic("play", "sm");
   if (pvBtn === btn && !pv.paused) { pv.pause(); pvBtn = null; return; }
-  pv.src = url; pv.play().then(() => { if (!mon.paused) $("#monBtn").click(); }).catch(() => toast("Ez a stream nem játszható le a böngészőben", "err"));
-  pvBtn = btn; if (btn) btn.textContent = "■";
+  pv.src = url; pv.play().then(() => { if (!mon.paused) monitorToggle(); }).catch(() => toast("Ez a stream nem játszható le a böngészőben", "err"));
+  pvBtn = btn; if (btn) btn.innerHTML = ic("stop", "sm");
 }
-pv.onended = () => { if (pvBtn) pvBtn.textContent = "▶"; pvBtn = null; };
+pv.onended = () => { if (pvBtn) pvBtn.innerHTML = ic("play", "sm"); pvBtn = null; };
 
 /* ---------------- feladatok ---------------- */
 const jobViews = new Map();
@@ -334,7 +408,7 @@ async function startJob(path, onDone) {
 function trackJob(id, onDone) {
   if (jobViews.has(id)) return;
   const el = document.createElement("div"); el.className = "job";
-  el.innerHTML = `<div class="hd"><span class="spin"></span><b class="grow" style="flex:1"></b><button class="btn sm ghost">Bezár</button></div><pre></pre>`;
+  el.innerHTML = `<div class="hd"><span class="spin"></span><b class="grow" style="flex:1"></b><button class="btn icon sm ghost" aria-label="Bezár">${ic("x", "sm")}</button></div><pre></pre>`;
   el.querySelector("button").onclick = () => { el.remove(); jobViews.delete(id); };
   $("#jobs").append(el); jobViews.set(id, el);
   const tick = async () => {
@@ -368,6 +442,7 @@ window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault
 /* ---------------- oldalak ---------------- */
 const PAGES = {};
 function renderPage() {
+  if (stageViz) { stageViz.stop(); stageViz = null; }
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.p === S.page));
   (PAGES[S.page] || PAGES.attekintes)($("#main"), ++S.seq);
 }
@@ -391,7 +466,21 @@ PAGES.attekintes = (el) => {
   el.innerHTML = `
   <h1>Áttekintés</h1><p class="sub">Mi szól most, mi jön, és minden, amibe azonnal bele tudsz nyúlni.</p>
   <div class="grid">
-    <div class="card hero" id="ovHero"></div>
+    <section class="stage" id="stage">
+      <canvas id="stageViz" aria-hidden="true"></canvas>
+      <div class="stage-ui">
+        <div class="stage-top"><div id="ovHeroText"></div><div class="actions" id="ovHeroActions"></div></div>
+        <div class="stage-tools">
+          <div class="seg" role="group" aria-label="Spektrum stílusa">
+            <button data-viz="bars" aria-label="Oszlopok" title="Oszlopok">${ic("bars", "sm")}</button>
+            <button data-viz="wave" aria-label="Hullám" title="Hullám">${ic("wave", "sm")}</button>
+            <button data-viz="radial" aria-label="Kör" title="Kör">${ic("radial", "sm")}</button>
+          </div>
+          <button class="btn icon glass" id="vizFull" aria-label="Teljes képernyő" title="Teljes képernyő">${ic("max", "sm")}</button>
+        </div>
+      </div>
+      <button class="stage-play" id="stagePlay">${ic("headphones")}Monitor bekapcsolása</button>
+    </section>
     <div class="grid g4" id="ovKpis"></div>
     <div class="card"><h2>Napi műsorrend <span class="small dim">sárga jel: hírblokk</span></h2><div id="ovTimeline"></div></div>
     <div class="grid g2">
@@ -399,25 +488,33 @@ PAGES.attekintes = (el) => {
       <div class="card"><h2>Hírek</h2><div id="ovNews"></div></div>
     </div>
   </div>`;
+  stageViz = new AiradioSpectrum($("#stageViz"), { bars: 72, top: 0.34, mode: store.get("airadio.viz") || "bars" });
+  if (analyser) stageViz.attach(analyser);
+  stageViz.setActive(!mon.paused);
+  $("#stage").classList.toggle("playing", !mon.paused);
+  stageViz.start();
+  const syncSeg = () => el.querySelectorAll("[data-viz]").forEach((b) => b.classList.toggle("on", b.dataset.viz === stageViz.mode));
+  el.querySelectorAll("[data-viz]").forEach((b) => b.onclick = () => { stageViz.setMode(b.dataset.viz); store.set("airadio.viz", b.dataset.viz); syncSeg(); });
+  syncSeg();
+  $("#stagePlay").onclick = () => { if (mon.paused) monitorToggle(); };
+  $("#vizFull").onclick = () => document.fullscreenElement ? document.exitFullscreen() : $("#stage").requestFullscreen().catch(() => toast("A teljes képernyő nem érhető el", "err"));
   renderOverviewLive();
 };
+document.addEventListener("fullscreenchange", () => { const b = $("#vizFull"); if (b) b.innerHTML = ic(document.fullscreenElement ? "min" : "max", "sm"); });
 function renderOverviewLive() {
-  const st = S.status; if (!st || !$("#ovHero")) return;
+  const st = S.status; if (!st || !$("#ovHeroText")) return;
   const r = st.radio || {}, oa = onAirInfo(st), ice = st.icecast || {};
   const srcColor = { live: "var(--onair)", news: "var(--warn)", manual: "var(--manual)", auto: "var(--ok)", down: "var(--onair)" }[oa.cls];
   const manual = r.override && !r.stale;
-  $("#ovHero").innerHTML = `
-    <div>
-      <div class="src" style="color:${srcColor}">${esc(oa.label)}${r.on_air === "tartalek" ? " · helyi zene" : ""}</div>
+  $("#ovHeroText").innerHTML = `
+      <div class="src" style="color:${srcColor}"><span class="dot" style="background:${srcColor}"></span>${esc(oa.label)}${r.on_air === "tartalek" ? " · helyi zene" : ""}</div>
       <div class="title">${esc(nowTitle(st) || (r.on_air === "tartalek" ? "Tartalék zene" : r.stale || !r.on_air ? "A rádió nem fut" : r.station || "–"))}</div>
-      <div class="meta">${r.station ? esc(r.station) : ""}${r.daypart ? " · " + esc(r.daypart) + " napszak" : ""}${manual ? ' · <span style="color:var(--manual)">kézi választás</span>' : ""}</div>
-    </div>
-    <div class="actions">
-      <button class="btn amber" data-act="newsnow">📰 Hírek most</button>
-      ${r.on_air === "hirek" ? '<button class="btn danger" data-act="skipnews">■ Hír leállítása</button>' : ""}
-      <button class="btn" data-act="nextst">⏭ Következő állomás</button>
-      ${manual ? '<button class="btn" data-act="auto">↺ Vissza automatára</button>' : ""}
-    </div>`;
+      <div class="meta">${r.station ? esc(r.station) : ""}${r.daypart ? " · " + esc(r.daypart) + " napszak" : ""}${manual ? ' · <span style="color:var(--manual)">kézi választás</span>' : ""}</div>`;
+  $("#ovHeroActions").innerHTML = `
+      <button class="btn amber" data-act="newsnow">${ic("news", "sm")}Hírek most</button>
+      ${r.on_air === "hirek" ? `<button class="btn danger glass" data-act="skipnews">${ic("stop", "sm")}Hír leállítása</button>` : ""}
+      <button class="btn glass" data-act="nextst">${ic("skip", "sm")}Következő állomás</button>
+      ${manual ? `<button class="btn glass" data-act="auto">${ic("auto", "sm")}Vissza automatára</button>` : ""}`;
   const last = st.news.last;
   $("#ovKpis").innerHTML = [
     ["Hallgatók", ice.on_air ? `${ice.listeners}<span class="small dim"> / csúcs ${ice.peak}</span>` : "–"],
@@ -435,12 +532,12 @@ function renderOverviewLive() {
       <div class="grow"><div class="name">${esc(s.name)}</div><div class="url">${esc(s.url)}</div></div>
       ${playing ? '<span class="badge ok">adásban</span>' : isManual ? '<span class="badge manual">kézi</span>' : ""}
       <button class="btn sm" data-play="${esc(s.url)}" ${s.ready ? "" : "disabled"}>Ezt játszd</button></div>`;
-  }).join("") : `<div class="empty">Ebben a napszakban nincs állomás, a tartalék zene szól.<br><a href="#allomasok">Állomások beállítása →</a></div>`;
+  }).join("") : `<div class="empty">Ebben a napszakban nincs állomás, a tartalék zene szól.<br><a href="#allomasok">Állomások beállítása ${ic("arrow", "xs")}</a></div>`;
   $("#ovNews").innerHTML = `
     <div class="stack">
       ${last ? `<div class="item"><div class="grow"><div class="name">Utolsó: ${fmtDate(last.created)} <span class="badge">${kindLabel(last.kind)}</span></div>
         <div class="small muted">${esc(last.status)}${last.seconds ? " · " + Math.round(last.seconds) + " mp" : ""} · ${(last.items || []).length} hír</div></div></div>` : '<div class="empty">Még nem készült hírblokk.</div>'}
-      <div class="row"><button class="btn" data-act="dry">Próba (csak szöveg)</button><a class="btn ghost" href="#hirek">Hírtörténet →</a></div>
+      <div class="row"><button class="btn" data-act="dry">${ic("eye", "sm")}Próba (csak szöveg)</button><a class="btn ghost" href="#hirek">Hírtörténet ${ic("arrow", "sm")}</a></div>
     </div>`;
 }
 function kindLabel(k) { return { hourly: "óránkénti", now: "azonnali", "dry-run": "próba" }[k] || k; }
@@ -475,20 +572,20 @@ PAGES.allomasok = async (el, tk) => {
   el.innerHTML = `
   <h1>Állomások</h1><p class="sub">Napszakonként melyik online rádiók adása szóljon. A lista elejéről az első működő szól; ha kiesik vagy elnémul, jön a következő.</p>
   <div class="tabs">${dps.map((x, i) => `<button class="${i === S.dpTab ? "active" : ""}" data-tab="${i}">${esc(x.name)} <span class="dim">${x.start}–${x.stop}</span></button>`).join("")}</div>
-  ${!d ? '<div class="empty">Nincs napszak. <a href="#napszakok">Napszakok →</a></div>' : `
+  ${!d ? `<div class="empty">Nincs napszak. <a href="#napszakok">Napszakok ${ic("arrow", "xs")}</a></div>` : `
   <div class="grid g2">
     <div class="stack">
       <div class="card"><h2>Saját állomások <span class="small dim">mindig a lista elején</span></h2>
         <div class="list" id="own">${(d.stations || []).map((s, i) => `
-          <div class="item"><button class="btn icon sm" data-pv="${esc(s.url)}" aria-label="Belehallgatás">▶</button>
+          <div class="item"><button class="btn icon sm" data-pv="${esc(s.url)}" aria-label="Belehallgatás">${ic("play", "sm")}</button>
             <div class="grow"><div class="name">${esc(s.name)}</div><div class="url">${esc(s.url)}</div></div>
-            <button class="btn icon sm ghost" data-up="${i}" ${i ? "" : "disabled"} aria-label="Feljebb">↑</button>
-            <button class="btn icon sm ghost" data-down="${i}" ${i < d.stations.length - 1 ? "" : "disabled"} aria-label="Lejjebb">↓</button>
-            <button class="btn icon sm ghost danger" data-del="${i}" aria-label="Törlés">✕</button></div>`).join("") || '<div class="empty">Nincs saját állomás. Keress lent, vagy add meg a stream címét.</div>'}</div>
+            <button class="btn icon sm ghost" data-up="${i}" ${i ? "" : "disabled"} aria-label="Feljebb">${ic("up", "sm")}</button>
+            <button class="btn icon sm ghost" data-down="${i}" ${i < d.stations.length - 1 ? "" : "disabled"} aria-label="Lejjebb">${ic("down", "sm")}</button>
+            <button class="btn icon sm ghost danger" data-del="${i}" aria-label="Törlés">${ic("x", "sm")}</button></div>`).join("") || '<div class="empty">Nincs saját állomás. Keress lent, vagy add meg a stream címét.</div>'}</div>
         <div class="grid" style="grid-template-columns:1.3fr 2fr auto;margin-top:12px;align-items:end">
           <label class="f">Név<input type="text" id="addName" placeholder="Kedvenc Rádió"></label>
           <label class="f">Stream URL<input type="url" id="addUrl" placeholder="https://…"></label>
-          <div class="row"><button class="btn" id="probeBtn">Próba</button><button class="btn primary" id="addBtn">Hozzáad</button></div>
+          <div class="row"><button class="btn" id="probeBtn">${ic("check", "sm")}Próba</button><button class="btn primary" id="addBtn">${ic("plus", "sm")}Hozzáad</button></div>
         </div>
       </div>
       <div class="card"><h2>Automatikus kiegészítés <span class="small dim">Radio Browser katalógus</span></h2>
@@ -500,8 +597,8 @@ PAGES.allomasok = async (el, tk) => {
         <p class="small muted" style="margin:10px 0 0">Alkalmazáskor a feltételnek megfelelő legnépszerűbb, éppen szóló adókkal egészíti ki a listát. 0 = kikapcsolva.</p>
       </div>
       <div class="card"><h2>Most futó lista <span class="small dim">az utolsó alkalmazás óta</span></h2>
-        <div class="list">${run.stations.length ? run.stations.map((s) => `<div class="item"><button class="btn icon sm" data-pv="${esc(s.url)}" aria-label="Belehallgatás">▶</button><div class="grow"><div class="name">${esc(s.name)}</div><div class="url">${esc(s.url)}</div></div><button class="btn sm" data-play="${esc(s.url)}">Ezt játszd</button></div>`).join("") : '<div class="empty">Üres: ebben a napszakban a tartalék zene szól.</div>'}</div>
-        <div class="row end" style="margin-top:12px"><button class="btn primary" id="applyBtn">Alkalmazás most</button></div>
+        <div class="list">${run.stations.length ? run.stations.map((s) => `<div class="item"><button class="btn icon sm" data-pv="${esc(s.url)}" aria-label="Belehallgatás">${ic("play", "sm")}</button><div class="grow"><div class="name">${esc(s.name)}</div><div class="url">${esc(s.url)}</div></div><button class="btn sm" data-play="${esc(s.url)}">Ezt játszd</button></div>`).join("") : '<div class="empty">Üres: ebben a napszakban a tartalék zene szól.</div>'}</div>
+        <div class="row end" style="margin-top:12px"><button class="btn primary" id="applyBtn">${ic("check", "sm")}Alkalmazás most</button></div>
       </div>
     </div>
     <div class="card"><h2>Keresés a katalógusban</h2>
@@ -509,7 +606,7 @@ PAGES.allomasok = async (el, tk) => {
         <label class="f">Név<input type="text" id="qName" placeholder="pl. Petőfi"></label>
         <label class="f">Címke<input type="text" id="qTag" placeholder="pl. rock"></label>
         <label class="f">Ország<input type="text" id="qCountry" placeholder="HU" maxlength="2"></label>
-        <button class="btn primary" id="qBtn">Keresés</button>
+        <button class="btn primary" id="qBtn">${ic("search", "sm")}Keresés</button>
       </div>
       <div id="results" class="list" style="margin-top:12px"><div class="empty">Írj be nevet, címkét vagy országkódot.</div></div>
     </div>
@@ -530,7 +627,7 @@ PAGES.allomasok = async (el, tk) => {
   $("#probeBtn").onclick = async () => {
     const url = $("#addUrl").value.trim(); if (!url) return;
     $("#probeBtn").disabled = true;
-    try { const r = await api("POST", "/api/stations/probe", { url }); toast(r.ok ? "Szól ✓" : "Nem szól, vagy nem hangfolyam", r.ok ? "ok" : "err"); }
+    try { const r = await api("POST", "/api/stations/probe", { url }); toast(r.ok ? "Szól, jó a cím" : "Nem szól, vagy nem hangfolyam", r.ok ? "ok" : "err"); }
     catch (e) { toast(e.message, "err"); } $("#probeBtn").disabled = false;
   };
   const syncSearch = () => {
@@ -546,9 +643,9 @@ PAGES.allomasok = async (el, tk) => {
     try {
       const rows = await api("GET", "/api/stations/search?" + q);
       $("#results").innerHTML = rows.length ? rows.map((r, i) => `
-        <div class="item"><button class="btn icon sm" data-rpv="${i}" aria-label="Belehallgatás">▶</button>
+        <div class="item"><button class="btn icon sm" data-rpv="${i}" aria-label="Belehallgatás">${ic("play", "sm")}</button>
           <div class="grow"><div class="name">${esc(r.name)}</div><div class="small muted">${esc([r.countrycode, r.codec && r.codec + " " + (r.bitrate || "?") + " kbps", r.tags].filter(Boolean).join(" · ")).slice(0, 140)}</div></div>
-          <button class="btn sm" data-radd="${i}">+ Hozzáad</button></div>`).join("") : '<div class="empty">Nincs találat.</div>';
+          <button class="btn sm" data-radd="${i}">${ic("plus", "sm")}Hozzáad</button></div>`).join("") : '<div class="empty">Nincs találat.</div>';
       $("#results").querySelectorAll("[data-rpv]").forEach((b) => b.onclick = () => preview(rows[+b.dataset.rpv].url, b));
       $("#results").querySelectorAll("[data-radd]").forEach((b) => b.onclick = () => { const r = rows[+b.dataset.radd]; addStation(r.name, r.url); });
     } catch (e) { $("#results").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
@@ -569,7 +666,7 @@ PAGES.hirek = async (el, tk) => {
   el.innerHTML = `
   <h1>Hírek</h1><p class="sub">Óránkénti hírblokk a beállított forrásokból: a Claude megírja, a Piper felolvassa, egész órakor adásba megy.</p>
   <div class="grid">
-    <div class="row"><button class="btn amber" data-act="newsnow">📰 Hírek most, adásba</button><button class="btn" data-act="dry">Próba (csak szöveg)</button><button class="btn ghost" id="feedCheck">Források ellenőrzése</button></div>
+    <div class="row"><button class="btn amber" data-act="newsnow">${ic("news", "sm")}Hírek most, adásba</button><button class="btn" data-act="dry">${ic("eye", "sm")}Próba (csak szöveg)</button><button class="btn ghost" id="feedCheck">${ic("check", "sm")}Források ellenőrzése</button></div>
     <div class="grid g4">${[["Ma", hist.cost.today], ["Ebben a hónapban", hist.cost.month], ["Összesen", hist.cost.total]].map(([l, v]) =>
       `<div class="card kpi"><div class="l">${l}</div><div class="v">${usd(v?.usd)}</div><div class="small muted">${v?.count || 0} Claude-hívás</div></div>`).join("")}
       <div class="card kpi"><div class="l">Tokenek összesen</div><div class="v" style="font-size:18px;margin-top:6px">${(hist.tokens.input || 0).toLocaleString("hu")} be</div><div class="small muted">${(hist.tokens.output || 0).toLocaleString("hu")} ki (gondolkodással)</div></div></div>
@@ -594,11 +691,11 @@ PAGES.hirek = async (el, tk) => {
       </div>
     </div>
     <div class="card"><h2>Hírforrások (RSS)</h2>
-      <div class="list" id="feeds">${(n.feeds || []).map((f, i) => `<div class="item"><div class="grow"><div class="name">${esc(f.name)}</div><div class="url">${esc(f.url)}</div></div><button class="btn icon sm ghost danger" data-fdel="${i}" aria-label="Törlés">✕</button></div>`).join("") || '<div class="empty">Legalább egy forrás kell.</div>'}</div>
+      <div class="list" id="feeds">${(n.feeds || []).map((f, i) => `<div class="item"><div class="grow"><div class="name">${esc(f.name)}</div><div class="url">${esc(f.url)}</div></div><button class="btn icon sm ghost danger" data-fdel="${i}" aria-label="Törlés">${ic("x", "sm")}</button></div>`).join("") || '<div class="empty">Legalább egy forrás kell.</div>'}</div>
       <div class="grid" style="grid-template-columns:1fr 2fr auto;margin-top:12px;align-items:end">
         <label class="f">Név<input type="text" id="fName" placeholder="pl. Telex"></label>
         <label class="f">RSS cím<input type="url" id="fUrl" placeholder="https://…/rss"></label>
-        <button class="btn primary" id="fAdd">Hozzáad</button>
+        <button class="btn primary" id="fAdd">${ic("plus", "sm")}Hozzáad</button>
       </div>
     </div>
     <div class="card"><h2>Hírtörténet</h2><div class="list">${hist.entries.map((e) => `
@@ -606,7 +703,7 @@ PAGES.hirek = async (el, tk) => {
         <b>${fmtDate(e.created)}</b><span class="badge">${kindLabel(e.kind)}</span><span class="muted small" style="flex:1">${esc(e.status)} · ${(e.items || []).length} hír${e.seconds ? " · " + Math.round(e.seconds) + " mp" : ""}</span>
         <span class="small mono dim">${(e.input_tokens || 0) + (e.output_tokens || 0)} tok · ${usd(e.cost_usd)}</span></summary>
         <div class="body">${e.audio ? `<audio controls preload="none" src="/api/news/audio/${encodeURIComponent(e.file)}" style="width:100%;margin-top:10px"></audio>` : ""}
-          <p><i>${esc(e.intro)}</i></p>${(e.items || []).map((it) => `<p>${it.aired === false ? '<span class="badge warn">kimaradt</span> ' : ""}<b>${esc(it.source)}:</b> ${esc(it.text)} ${it.link ? `<a href="${esc(it.link)}" target="_blank" rel="noopener" class="small">forrás ↗</a>` : ""}</p>`).join("")}<p><i>${esc(e.outro)}</i></p>
+          <p><i>${esc(e.intro)}</i></p>${(e.items || []).map((it) => `<p>${it.aired === false ? '<span class="badge warn">kimaradt</span> ' : ""}<b>${esc(it.source)}:</b> ${esc(it.text)} ${it.link ? `<a href="${esc(it.link)}" target="_blank" rel="noopener" class="small">forrás ${ic("ext", "xs")}</a>` : ""}</p>`).join("")}<p><i>${esc(e.outro)}</i></p>
           <p class="small dim">${esc(e.model || "")}: ${e.input_tokens || 0} bemeneti, ${e.output_tokens || 0} kimeneti token</p></div></details>`).join("") || '<div class="empty">Még nincs hírblokk.</div>'}</div></div>
   </div>`;
   const setHours = (arr) => { n.hours = [...new Set(arr)].sort((a, b) => a - b); markDirty(); renderPage(); };
@@ -642,7 +739,7 @@ PAGES.napszakok = async (el, tk) => {
     ${dupes.length ? `<div class="note warn" style="margin-top:12px">Átfedő órák: ${dupes.map(pad).join(", ")} – ilyenkor az első napszak érvényes.</div>` : ""}</div>
   <div class="grid g2">${dps.map((d, i) => `
     <div class="card"><h2><span><span class="${dpColor(i)}" style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px"></span>${esc(d.name)}</span>
-      <button class="btn sm ghost danger" data-dpdel="${i}">Törlés</button></h2>
+      <button class="btn sm ghost danger" data-dpdel="${i}">${ic("x", "sm")}Törlés</button></h2>
       <div class="grid g3">
         <label class="f">Név<input type="text" data-dp="${i}" data-k="name" value="${esc(d.name)}"></label>
         <label class="f">Kezdet<select data-dp="${i}" data-k="start">${hourOpts(d.start)}</select></label>
@@ -650,9 +747,9 @@ PAGES.napszakok = async (el, tk) => {
       </div>
       <label class="f" style="margin-top:12px">Műsorvezetői karakter (ezt kapja a Claude a hírblokk felvezetéséhez)
         <textarea data-dp="${i}" data-k="host" rows="3">${esc(d.host || "")}</textarea></label>
-      <p class="small muted" style="margin:10px 0 0">${(d.stations || []).length} saját állomás${d.search ? `, kiegészítés: ${esc(d.search.tag || "")}${d.search.countrycode ? " / " + esc(d.search.countrycode) : ""} ×${d.search.limit}` : ""} · <a href="#allomasok" data-dptab="${i}">állomások →</a></p>
+      <p class="small muted" style="margin:10px 0 0">${(d.stations || []).length} saját állomás${d.search ? `, kiegészítés: ${esc(d.search.tag || "")}${d.search.countrycode ? " / " + esc(d.search.countrycode) : ""} ×${d.search.limit}` : ""} · <a href="#allomasok" data-dptab="${i}">állomások ${ic("arrow", "xs")}</a></p>
     </div>`).join("")}
-    <button class="card empty" id="dpAdd" style="cursor:pointer;min-height:140px">+ Új napszak</button>
+    <button class="card empty" id="dpAdd" style="cursor:pointer;min-height:140px">${ic("plus")} Új napszak</button>
   </div>`;
   el.querySelectorAll("[data-dp]").forEach((inp) => inp.oninput = inp.onchange = () => {
     const d = dps[+inp.dataset.dp], k = inp.dataset.k;
@@ -683,17 +780,17 @@ PAGES.hangok = async (el, tk) => {
   </div>
   <div class="card" style="margin-top:16px"><h2>Elérhető magyar hangok</h2><table class="t"><tr><th>Hang</th><th>Állapot</th><th></th></tr>
     ${S.voices.map((x) => `<tr><td class="mono">${x.name}</td><td>${x.downloaded ? '<span class="badge ok">letöltve</span>' : '<span class="badge">nincs letöltve</span>'}${x.name === v.host ? ' <span class="badge">műsorvezető</span>' : ""}${x.name === v.news ? ' <span class="badge">hírolvasó</span>' : ""}</td>
-      <td style="text-align:right">${x.downloaded ? `<button class="btn sm" data-vpre="${x.name}">▶ Meghallgat</button>` : `<button class="btn sm" data-vdl="${x.name}">Letöltés</button>`}</td></tr>`).join("")}</table></div>`;
+      <td style="text-align:right">${x.downloaded ? `<button class="btn sm" data-vpre="${x.name}">${ic("play", "sm")}Meghallgat</button>` : `<button class="btn sm" data-vdl="${x.name}">${ic("download", "sm")}Letöltés</button>`}</td></tr>`).join("")}</table></div>`;
   $("#vHost").onchange = (e) => { v.host = e.target.value; markDirty(); };
   $("#vNews").onchange = (e) => { v.news = e.target.value; markDirty(); };
   el.querySelectorAll("[data-vdl]").forEach((b) => b.onclick = async () => {
     try { const job = await api("POST", "/api/voices/download", { names: [b.dataset.vdl] }); trackJob(job.id, () => { if (S.page === "hangok") renderPage(); }); } catch (e) { toast(e.message, "err"); }
   });
   el.querySelectorAll("[data-vpre]").forEach((b) => b.onclick = async () => {
-    b.disabled = true; b.textContent = "…";
+    b.disabled = true; b.innerHTML = ic("loader", "sm spinning") + "Készül";
     try { const blob = await api("POST", "/api/voices/preview", { voice: b.dataset.vpre, text: $("#vText").value }); preview(URL.createObjectURL(blob), null); }
     catch (e) { toast(e.message, "err"); }
-    b.disabled = false; b.textContent = "▶ Meghallgat";
+    b.disabled = false; b.innerHTML = ic("play", "sm") + "Meghallgat";
   });
 };
 
@@ -704,14 +801,14 @@ PAGES.zenetar = async (el, tk) => {
   const total = backup.reduce((a, f) => a + f.size, 0);
   const jingle = (stem, label) => { const f = jingles.find((j) => j.name === stem + ".wav"); return `
     <div class="item"><div class="grow"><div class="name">${label}</div><div class="url">${f ? f.name + " · " + fmtBytes(f.size) : "nincs feltöltve"}</div></div>
-      ${f ? `<button class="btn icon sm" data-lpv="jingles/${f.name}" aria-label="Lejátszás">▶</button><button class="btn icon sm ghost danger" data-ldel="jingles/${f.name}" aria-label="Törlés">✕</button>` : ""}
-      <label class="btn sm">Feltöltés<input type="file" accept="audio/*" data-jup="${stem}" hidden></label></div>`; };
+      ${f ? `<button class="btn icon sm" data-lpv="jingles/${f.name}" aria-label="Lejátszás">${ic("play", "sm")}</button><button class="btn icon sm ghost danger" data-ldel="jingles/${f.name}" aria-label="Törlés">${ic("x", "sm")}</button>` : ""}
+      <label class="btn sm">${ic("upload", "sm")}Feltöltés<input type="file" accept="audio/*" data-jup="${stem}" hidden></label></div>`; };
   el.innerHTML = `
   <h1>Zenetár</h1><p class="sub">Helyi hanganyagok: a tartalék zene akkor szól, ha egyik állomás sem elérhető; a hírszignál a hírblokk elejére és végére kerül.</p>
   <div class="grid g2">
     <div class="card"><h2><span>Tartalék zene</span><span class="small dim">${backup.length} fájl · ${fmtBytes(total)}</span></h2>
-      <label class="drop" id="drop">Húzd ide a zenéket, vagy kattints a tallózáshoz<br><span class="small dim">mp3, ogg, wav, flac, m4a, aac, opus</span><input type="file" id="upl" accept="audio/*" multiple hidden></label>
-      <div class="list" style="margin-top:12px">${backup.map((f) => `<div class="item"><button class="btn icon sm" data-lpv="backup/${esc(f.name)}" aria-label="Lejátszás">▶</button><div class="grow"><div class="name">${esc(f.name)}</div><div class="url">${fmtBytes(f.size)}</div></div><button class="btn icon sm ghost danger" data-ldel="backup/${esc(f.name)}" aria-label="Törlés">✕</button></div>`).join("") || '<div class="empty">Üres: ha nincs elérhető állomás, csend lesz.</div>'}</div></div>
+      <label class="drop" id="drop">${ic("upload", "lg")}<br>Húzd ide a zenéket, vagy kattints a tallózáshoz<br><span class="small dim">mp3, ogg, wav, flac, m4a, aac, opus</span><input type="file" id="upl" accept="audio/*" multiple hidden></label>
+      <div class="list" style="margin-top:12px">${backup.map((f) => `<div class="item"><button class="btn icon sm" data-lpv="backup/${esc(f.name)}" aria-label="Lejátszás">${ic("play", "sm")}</button><div class="grow"><div class="name">${esc(f.name)}</div><div class="url">${fmtBytes(f.size)}</div></div><button class="btn icon sm ghost danger" data-ldel="backup/${esc(f.name)}" aria-label="Törlés">${ic("x", "sm")}</button></div>`).join("") || '<div class="empty">Üres: ha nincs elérhető állomás, csend lesz.</div>'}</div></div>
     <div class="card"><h2>Hírszignál</h2><div class="list">${jingle("hirek_eleje", "Hírek eleje")}${jingle("hirek_vege", "Hírek vége")}</div>
       <p class="small muted" style="margin:12px 0 0">Bármilyen hangfájl jó, WAV-ra alakítjuk. A következő hírblokktól szól.</p></div>
   </div>`;
@@ -743,14 +840,14 @@ PAGES.elo = async (el, tk) => {
   <div class="grid g2">
     <div class="card"><h2>Állapot</h2><div id="liveState"></div></div>
     <div class="card"><h2>Kapcsolódási adatok</h2>${li ? `<table class="t">
-      ${[["Szervertípus", "Icecast"], ["Cím", li.host], ["Port", li.port], ["Mount", li.mount], ["Felhasználó", li.user]].map(([k, v]) => `<tr><td class="muted">${k}</td><td class="mono">${esc(v)}</td><td style="text-align:right"><button class="btn sm ghost" data-copy="${esc(v)}">Másol</button></td></tr>`).join("")}
-      <tr><td class="muted">Jelszó</td><td><input type="password" id="lpw" value="${esc(li.password)}" readonly class="mono"></td><td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" id="lshow">Mutat</button> <button class="btn sm ghost" data-copy="${esc(li.password)}">Másol</button></td></tr></table>` : '<div class="empty">Nem elérhető</div>'}</div>
+      ${[["Szervertípus", "Icecast"], ["Cím", li.host], ["Port", li.port], ["Mount", li.mount], ["Felhasználó", li.user]].map(([k, v]) => `<tr><td class="muted">${k}</td><td class="mono">${esc(v)}</td><td style="text-align:right"><button class="btn sm ghost" data-copy="${esc(v)}">${ic("copy", "sm")}Másol</button></td></tr>`).join("")}
+      <tr><td class="muted">Jelszó</td><td><input type="password" id="lpw" value="${esc(li.password)}" readonly class="mono"></td><td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" id="lshow">${ic("eye", "sm")}Mutat</button> <button class="btn sm ghost" data-copy="${esc(li.password)}">${ic("copy", "sm")}Másol</button></td></tr></table>` : '<div class="empty">Nem elérhető</div>'}</div>
   </div>
   <div class="card" style="margin-top:16px"><h2>Beállítás BUTT-ban</h2><ol class="muted" style="margin:0;padding-left:20px;line-height:1.9">
-    <li>Settings → Main → Server → <b>Add</b></li><li>Type: <b>Icecast</b>, Address, Port, Password, Icecast mountpoint: a fenti adatok, Icecast user: <b>source</b></li>
+    <li>Settings ${ic("chev", "xs")} Main ${ic("chev", "xs")} Server ${ic("chev", "xs")} <b>Add</b></li><li>Type: <b>Icecast</b>, Address, Port, Password, Icecast mountpoint: a fenti adatok, Icecast user: <b>source</b></li>
     <li>Audio: MP3 vagy AAC, 128 kbps, 44 100 Hz, sztereó</li><li><b>Play</b> gomb: pár másodpercen belül te szólsz az adásban, a hírblokk addig kimarad.</li></ol></div>`;
   el.querySelectorAll("[data-copy]").forEach((b) => b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast("Vágólapra másolva")));
-  const sh = $("#lshow"); if (sh) sh.onclick = () => { const i = $("#lpw"); i.type = i.type === "password" ? "text" : "password"; sh.textContent = i.type === "password" ? "Mutat" : "Elrejt"; };
+  const sh = $("#lshow"); if (sh) sh.onclick = () => { const i = $("#lpw"); i.type = i.type === "password" ? "text" : "password"; sh.innerHTML = ic("eye", "sm") + (i.type === "password" ? "Mutat" : "Elrejt"); };
   renderLiveState();
 };
 function renderLiveState() {

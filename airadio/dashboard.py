@@ -587,6 +587,8 @@ def make_handler(app: Dashboard, password: str):
 
             if method == "GET" and path in ("/", "/index.html"):
                 return self._file(WEB_DIR / "dashboard.html", "text/html; charset=utf-8")
+            if method == "GET" and path == "/viz.js":
+                return self._file(WEB_DIR / "viz.js", "text/javascript; charset=utf-8")
             if method == "GET" and path == "/stream":
                 return self._stream()
             if method == "GET" and path == "/api/status":
