@@ -39,6 +39,11 @@ icecast_mount = env("ICECAST_MOUNT", "radio.mp3")
 live_port = string.to_int(default=8005, env("LIVE_PORT", "8005"))
 live_password = env("LIVE_PASSWORD", "")
 
+# Az irányítópult helyi telnet-kapcsolaton kérdezi le a szinteket és indítja az effekteket.
+settings.server.telnet := true
+settings.server.telnet.bind_addr := "127.0.0.1"
+settings.server.telnet.port := string.to_int(default=1234, env("AIRADIO_TELNET_PORT", "1234"))
+
 if icecast_password == "" or live_password == "" then
   log.critical(label="airadio", "Az ICECAST_SOURCE_PASSWORD és a LIVE_PASSWORD kötelező.")
   exit(1)
@@ -125,16 +130,92 @@ news = request.queue(id="hirek")
 # Kis puffer, hogy az élő adás pár másodpercen belül átvegye az adást.
 live = input.harbor(id="elo", port=live_port, user="source", password=live_password, buffer=3., max=10., "live")
 
-def atmenet(a, b) =
-  add(normalize=false, [fade.in(duration=1., b), fade.out(duration=1., a)])
+# --- Keverőpult ------------------------------------------------------------------
+# A mixer.json-t az irányítópult írja; negyedmásodpercenként figyeljük, így a
+# faderek szinte azonnal hatnak. Minden érték dB-ben, kivéve: comp 0..1,
+# xfade másodperc. -60 dB vagy kevesebb = teljes csend.
+
+mixer_file = "#{data_dir}/mixer.json"
+
+mixer_default = {
+  music={gain=0., mute=false}, news={gain=0., mute=false}, live={gain=0., mute=false},
+  cart={gain=0., mute=false}, master={gain=0., mute=false},
+  news_bed=-60., live_bed=-60.,
+  eq={low=0., mid=0., high=0.},
+  comp=0., limiter=true, xfade=1.
+}
+mix = ref(mixer_default)
+mixer_mtime = ref(-1.)
+
+def poll_mixer() =
+  mtime = file.exists(mixer_file) ? file.mtime(mixer_file) : -1.
+  if mtime != mixer_mtime() then
+    mixer_mtime := mtime
+    if mtime >= 0. then
+      try
+        let json.parse (m : {
+          music: {gain: float, mute: bool}, news: {gain: float, mute: bool}, live: {gain: float, mute: bool},
+          cart: {gain: float, mute: bool}, master: {gain: float, mute: bool},
+          news_bed: float, live_bed: float, eq: {low: float, mid: float, high: float},
+          comp: float, limiter: bool, xfade: float
+        }) = file.contents(mixer_file)
+        mix := m
+      catch err do
+        log.severe(label="keverespult", "#{mixer_file}: #{err.message}")
+      end
+    end
+  end
+end
+poll_mixer()
+thread.run(every=0.25, poll_mixer)
+
+def lin(db) =
+  if db <= -59.9 then 0. else lin_of_dB(db) end
 end
 
-radio = fallback(id="adas", track_sensitive=false, transitions=[atmenet, atmenet, atmenet], [live, news, music])
+def channel(ch) =
+  if ch.mute then 0. else lin(ch.gain) end
+end
+
+# Csatornák: fader után mérve, ahogy egy keverőpulton.
+music_ch = rms(id="m_zene", duration=0.12, amplify(id="ch_zene", {channel(mix().music)}, music))
+news_ch = rms(id="m_hirek", duration=0.12, amplify(id="ch_hirek", {channel(mix().news)}, news))
+live_ch = rms(id="m_elo", duration=0.12, amplify(id="ch_elo", {channel(mix().live)}, live))
+
+# Zenei alap: a hírek, illetve az élő adás alá keverhető halk zene.
+news_mix = switch(id="hirek_alap", track_sensitive=false, [
+  ({source.is_ready(news)}, add(normalize=false, [news_ch, amplify({lin(mix().news_bed)}, music_ch)]))
+])
+live_mix = switch(id="elo_alap", track_sensitive=false, [
+  ({source.is_ready(live)}, add(normalize=false, [live_ch, amplify({lin(mix().live_bed)}, music_ch)]))
+])
+
+def atmenet(a, b) =
+  d = mix().xfade
+  if d <= 0.05 then b else add(normalize=false, [fade.in(duration=d, b), fade.out(duration=d, a)]) end
+end
+
+radio = fallback(id="adas", track_sensitive=false, transitions=[atmenet, atmenet, atmenet], [live_mix, news_mix, music_ch])
 radio = mksafe(radio)
 
 current_meta = ref(([] : [(string * string)]))
 radio.on_metadata(fun (m) -> current_meta := m)
 started = time.string("%Y-%m-%d %H:%M:%S")
+
+# Effekt-kártyák (jinglek, hangminták): minden fölé keverve szólnak.
+cart = request.queue(id="cart")
+cart_ch = rms(id="m_effekt", duration=0.12, amplify(id="ch_effekt", {channel(mix().cart)}, cart))
+radio = add(normalize=false, [radio, cart_ch])
+
+# Master: háromsávos hangszínszabályzó, kompresszor, végerősítés, limiter.
+radio = filter.iir.eq.peak(frequency=100., q=0.7, gain={mix().eq.low}, radio)
+radio = filter.iir.eq.peak(frequency=1000., q=0.8, gain={mix().eq.mid}, radio)
+radio = filter.iir.eq.peak(frequency=8000., q=0.7, gain={mix().eq.high}, radio)
+radio = compress(threshold=-20., ratio=3., attack=15., release=250., gain={mix().comp * 6.}, wet={mix().comp}, radio)
+radio = amplify(id="ch_master", {channel(mix().master)}, radio)
+radio = limit(threshold={mix().limiter ? -1. : 40.}, radio)
+master_peak = peak(id="p_master", duration=0.12, radio)
+radio = rms(id="m_master", duration=0.12, master_peak)
 
 output.icecast(
   %mp3(bitrate=128, samplerate=44100, stereo=true),
@@ -210,6 +291,16 @@ def report() =
 end
 
 thread.run(delay=3., every=2., report)
+
+# Szintek az irányítópult mérőihez (lineáris 0..1, a felület számol dB-t).
+def on_air_now() =
+  if source.is_ready(live) then "elo" elsif source.is_ready(news) then "hirek" else "zene" end
+end
+
+server.register(namespace="keveres", "szintek", fun (_) -> json.stringify({
+  music=music_ch.rms(), news=news_ch.rms(), live=live_ch.rms(), cart=cart_ch.rms(),
+  master=radio.rms(), peak=master_peak.peak(), on_air=on_air_now(), cart_playing=source.is_ready(cart)
+}))
 
 # --- Vezérlés az irányítópultról ------------------------------------------------
 # control.json: {"override": "<stream URL vagy üres>", "skip_news": <számláló>}

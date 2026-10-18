@@ -132,6 +132,77 @@ def restart_liquidsoap() -> int:
     return killed
 
 
+# --- Keverőpult ------------------------------------------------------------------------
+
+MIXER_DEFAULT = {
+    "music": {"gain": 0.0, "mute": False},
+    "news": {"gain": 0.0, "mute": False},
+    "live": {"gain": 0.0, "mute": False},
+    "cart": {"gain": 0.0, "mute": False},
+    "master": {"gain": 0.0, "mute": False},
+    "news_bed": -60.0,
+    "live_bed": -60.0,
+    "eq": {"low": 0.0, "mid": 0.0, "high": 0.0},
+    "comp": 0.0,
+    "limiter": True,
+    "xfade": 1.0,
+}
+CHANNELS = ("music", "news", "live", "cart", "master")
+
+
+def _clamp(value, lo: float, hi: float) -> float:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        raise ApiError(400, f"Nem szám: {value!r}") from None
+    return float(min(hi, max(lo, v)))  # a Liquidsoap lebegőpontos számot vár
+
+
+def merge_mixer(current: dict, update: dict) -> dict:
+    """Részleges módosítás ellenőrzött, a Liquidsoap által várt teljes alakra.
+
+    A Liquidsoap típusos JSON-olvasója minden mezőt és lebegőpontos számot vár,
+    ezért mindig a teljes szerkezetet írjuk ki.
+    """
+    m = json.loads(json.dumps(current))
+    for ch in CHANNELS:
+        if ch in update:
+            if "gain" in update[ch]:
+                m[ch]["gain"] = _clamp(update[ch]["gain"], -60, 12)
+            if "mute" in update[ch]:
+                m[ch]["mute"] = bool(update[ch]["mute"])
+    for key in ("news_bed", "live_bed"):
+        if key in update:
+            m[key] = _clamp(update[key], -60, 0)
+    for band in ("low", "mid", "high"):
+        if band in update.get("eq", {}):
+            m["eq"][band] = _clamp(update["eq"][band], -12, 12)
+    if "comp" in update:
+        m["comp"] = _clamp(update["comp"], 0, 1)
+    if "xfade" in update:
+        m["xfade"] = _clamp(update["xfade"], 0, 8)
+    if "limiter" in update:
+        m["limiter"] = bool(update["limiter"])
+    return m
+
+
+def telnet(command: str, port: int, timeout: float = 2.0) -> str:
+    """Egy parancs a Liquidsoap helyi telnet-szerverének; a válasz END-ig tart."""
+    import socket
+
+    with socket.create_connection(("127.0.0.1", port), timeout=timeout) as sock:
+        sock.sendall(command.encode() + b"\n")
+        buf = b""
+        while not buf.rstrip().endswith(b"END"):
+            chunk = sock.recv(65536)
+            if not chunk:
+                break
+            buf += chunk
+        sock.sendall(b"quit\n")
+    text = buf.decode("utf-8", "replace").replace("\r\n", "\n").rstrip()
+    return text[: -len("END")].rstrip() if text.endswith("END") else text
+
+
 # --- Az alkalmazás ---------------------------------------------------------------------
 
 
@@ -144,6 +215,8 @@ class Dashboard:
         self._speaker = None
         self._speaker_lock = threading.Lock()
         self._control_lock = threading.Lock()
+        self._mixer_lock = threading.Lock()
+        self.telnet_port = int(os.environ.get("AIRADIO_TELNET_PORT", "1234"))
 
     # beállítás
 
@@ -323,6 +396,44 @@ class Dashboard:
             raise ApiError(400, f"Ismeretlen hangnév: {', '.join(unknown)}")
         argv = [sys.executable, "-m", "piper.download_voices", "--data-dir", str(cfg.voices_dir), *names]
         return self.jobs.start("voices", "Hangok letöltése", lambda emit: run_command(argv, emit, self._env()))
+
+    # keverőpult
+
+    def mixer(self) -> dict:
+        path = self.cfg().data_dir / "mixer.json"
+        try:
+            return merge_mixer(MIXER_DEFAULT, json.loads(path.read_text()))
+        except (FileNotFoundError, json.JSONDecodeError, AttributeError, TypeError, ApiError):
+            return json.loads(json.dumps(MIXER_DEFAULT))
+
+    def set_mixer(self, update: dict) -> dict:
+        if not isinstance(update, dict):
+            raise ApiError(400, "Hibás keverőpult-beállítás")
+        path = self.cfg().data_dir / "mixer.json"
+        with self._mixer_lock:
+            m = merge_mixer(self.mixer(), update)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(m))
+            tmp.replace(path)
+        return m
+
+    def levels(self) -> dict:
+        try:
+            return json.loads(telnet("keveres.szintek", self.telnet_port, timeout=1.0))
+        except (OSError, json.JSONDecodeError) as e:
+            raise ApiError(503, f"A rádió most nem válaszol: {e}") from None
+
+    def cart(self, body: dict) -> dict:
+        if body.get("stop"):
+            telnet("cart.flush_and_skip", self.telnet_port)
+            return {"ok": True}
+        path = self.library_file(str(body.get("kind", "")), str(body.get("name", "")))
+        try:
+            rid = telnet(f"cart.push {path}", self.telnet_port)
+        except OSError as e:
+            raise ApiError(503, f"A rádió most nem válaszol: {e}") from None
+        return {"ok": True, "request": rid}
 
     # hangok
 
@@ -600,6 +711,15 @@ def make_handler(app: Dashboard, password: str):
                     return self._json(app.save_config(self._body()))
             if method == "POST" and path == "/api/apply":
                 return self._json(app.apply_job())
+            if path == "/api/mixer":
+                if method == "GET":
+                    return self._json(app.mixer())
+                if method in ("PUT", "POST"):
+                    return self._json(app.set_mixer(self._body()))
+            if method == "GET" and path == "/api/levels":
+                return self._json(app.levels())
+            if method == "POST" and path == "/api/cart":
+                return self._json(app.cart(self._body()))
             if method == "POST" and path == "/api/control":
                 return self._json(app.control(self._body()))
             if method == "GET" and path == "/api/stations/search":

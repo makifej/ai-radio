@@ -158,3 +158,44 @@ def test_password_required(server):
         assert status == 200
     finally:
         srv.shutdown()
+
+
+def test_mixer_merge_clamps_and_writes_floats(server):
+    status, m = call(server["url"], "PUT", "/api/mixer", {"music": {"gain": 99, "mute": True}, "eq": {"low": -40}, "comp": 2, "xfade": 3})
+    assert status == 200
+    raw = (server["data"] / "mixer.json").read_text()
+    saved = json.loads(raw)
+    assert saved["music"] == {"gain": 12.0, "mute": True}
+    assert saved["eq"]["low"] == -12.0 and saved["comp"] == 1.0 and saved["xfade"] == 3.0
+    # a Liquidsoap minden számot lebegőpontosként vár: egész szám nem kerülhet a fájlba
+    assert '"gain": 12.0' in raw and '"news_bed": -60.0' in raw
+    _, again = call(server["url"], "GET", "/api/mixer")
+    assert again == saved
+
+
+def test_levels_unavailable_without_radio(server, monkeypatch):
+    server["app"].telnet_port = 1  # ott nem figyel semmi
+    status, err = call(server["url"], "GET", "/api/levels")
+    assert status == 503
+
+
+def test_telnet_reads_until_end():
+    import socket
+
+    from airadio.dashboard import telnet
+
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+
+    def serve():
+        conn, _ = srv.accept()
+        conn.recv(100)
+        conn.sendall(b'{ "music": 0.5 }\r\n')
+        conn.sendall(b"END\r\n")
+        conn.recv(100)
+        conn.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    assert telnet("keveres.szintek", srv.getsockname()[1]) == '{ "music": 0.5 }'
+    srv.close()

@@ -27,7 +27,7 @@ a { color: var(--accent); }
 header.top { grid-column: 1 / -1; position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 18px;
   padding: 10px 18px; background: rgba(11,13,18,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
 nav.side { border-right: 1px solid var(--line); padding: 14px 10px; position: sticky; top: 57px; height: calc(100vh - 57px); overflow: auto; }
-main { padding: 22px 26px 120px; max-width: 1280px; width: 100%; }
+main { padding: 20px 24px 120px; width: 100%; min-width: 0; }
 nav.side a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--muted);
   text-decoration: none; font-weight: 500; }
 nav.side a:hover { background: var(--panel2); color: var(--text); }
@@ -193,6 +193,94 @@ details.b .body p { margin: 10px 0 0; }
 .note { padding: 10px 12px; border-radius: 9px; background: rgba(79,140,255,.08); border: 1px solid rgba(79,140,255,.25); color: var(--text); }
 .note.warn { background: rgba(255,176,32,.08); border-color: rgba(255,176,32,.3); }
 
+
+/* --- stúdió --- */
+.studio-top { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; }
+.clockcard { display: flex; flex-direction: column; gap: 14px; }
+.bigclock { font-size: 54px; font-weight: 650; letter-spacing: .02em; line-height: 1; }
+.bigclock .sec { color: var(--muted); font-size: 30px; }
+.cd .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+.cdv { font-size: 30px; font-weight: 650; margin-top: 2px; color: var(--warn); }
+.cdbar { height: 4px; border-radius: 2px; background: var(--line2); margin-top: 8px; overflow: hidden; }
+.cdbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--warn), #f97316); transition: width .5s linear; }
+.lamps { display: grid; gap: 8px; margin-top: auto; }
+.lampi { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.lampi .v { margin-left: auto; color: var(--muted); font-size: 12px; }
+.led { width: 10px; height: 10px; border-radius: 50%; background: #2a303c; box-shadow: inset 0 1px 2px rgba(0,0,0,.6); flex: none; }
+.led.ok { background: var(--ok); box-shadow: 0 0 10px rgba(47,210,122,.7); }
+.led.bad { background: var(--onair); box-shadow: 0 0 10px rgba(255,69,69,.7); }
+.led.warn { background: var(--warn); box-shadow: 0 0 10px rgba(255,176,32,.6); }
+
+.desk { border-radius: 16px; border: 1px solid var(--line2); overflow: hidden;
+  background: linear-gradient(180deg, #1a1f29 0%, #12161e 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 20px 50px rgba(0,0,0,.35); }
+.desk-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid #0b0d12;
+  background: linear-gradient(180deg, #1f2531, #191e28); }
+.desk-title { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--muted); }
+.desk-body { display: flex; overflow-x: auto; }
+.strip { flex: 1 0 128px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 10px 16px;
+  border-right: 1px solid #0b0d12; box-shadow: inset -1px 0 0 rgba(255,255,255,.03); }
+.strip:last-child { border-right: 0; }
+.strip-head { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text); }
+.lamp { width: 9px; height: 9px; border-radius: 50%; background: #2a303c; box-shadow: inset 0 1px 2px rgba(0,0,0,.7); }
+.lamp.on { background: var(--onair); box-shadow: 0 0 12px rgba(255,69,69,.9); }
+.lamp.on.green { background: var(--ok); box-shadow: 0 0 12px rgba(47,210,122,.8); }
+.strip-knobs { min-height: 92px; display: flex; gap: 10px; justify-content: center; }
+.strip-body { display: flex; gap: 10px; align-items: stretch; height: 230px; }
+.strip-foot { display: flex; align-items: center; gap: 10px; }
+.db { min-width: 54px; text-align: center; font-size: 12px; padding: 4px 6px; border-radius: 6px; background: #0b0d12; color: #9fe3b8; border: 1px solid #222935; }
+.mute { width: 34px; height: 28px; border-radius: 6px; border: 1px solid #2c3442; background: linear-gradient(180deg, #252b37, #1b2029); color: var(--muted);
+  font: 800 12px/1 var(--mono); cursor: pointer; }
+.mute.on { background: linear-gradient(180deg, #ff5a5a, #d92f2f); color: #fff; border-color: #ff6b6b; box-shadow: 0 0 14px rgba(255,69,69,.55); }
+.strip.master { flex: 2.4 0 380px; background: linear-gradient(180deg, rgba(99,102,241,.06), transparent); }
+.master-row { display: flex; gap: 18px; align-items: flex-end; flex: 1; }
+.master-knobs { align-self: flex-start; }
+.master-knobs { display: grid; grid-template-columns: repeat(3, auto); gap: 10px 8px; }
+.master-side { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+
+/* fader */
+.fader { position: relative; width: 58px; height: 100%; cursor: ns-resize; touch-action: none; outline: none; }
+.fader .scale { position: absolute; left: 0; top: 11px; bottom: 11px; width: 22px; }
+.fader .scale span { position: absolute; right: 0; transform: translateY(50%); font: 9px/1 var(--mono); color: var(--dim); white-space: nowrap; }
+.fader .scale span::after { content: ""; display: inline-block; width: 4px; height: 1px; background: var(--dim); margin-left: 3px; vertical-align: middle; }
+.fader .groove { position: absolute; left: 36px; top: 11px; bottom: 11px; width: 6px; border-radius: 3px; background: #07090c;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.05); overflow: hidden; }
+.fader .groove i { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(0deg, #4f8cff, #a855f7); opacity: .55; }
+.fader .cap { position: absolute; left: 25px; width: 28px; height: 22px; border-radius: 5px; transform: translateY(50%);
+  background: linear-gradient(180deg, #f1f4f9 0%, #c9d0dc 45%, #9aa3b5 55%, #dfe4ec 100%);
+  box-shadow: 0 6px 14px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.8); }
+.fader .cap::after { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 2px; margin-top: -1px; background: #22272f; border-radius: 1px; }
+.fader:focus-visible .cap { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* LED-mérő */
+.meter { width: 14px; height: 100%; display: block; }
+.meter.wide { width: 30px; }
+
+/* forgatógomb */
+.knob { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: ns-resize; touch-action: none; outline: none; user-select: none; }
+.knob svg { width: 54px; height: 54px; overflow: visible; }
+.knob .track { fill: none; stroke: #0b0d12; stroke-width: 5; stroke-linecap: round; }
+.knob .val { fill: none; stroke: url(#knobgrad); stroke-width: 5; stroke-linecap: round; filter: drop-shadow(0 0 4px rgba(99,102,241,.6)); }
+.knob .cap { fill: url(#capgrad); stroke: #0b0d12; stroke-width: 1; }
+.knob .ptr { stroke: #e7eaf0; stroke-width: 2.4; stroke-linecap: round; }
+.knob .kv { font-size: 10.5px; color: #9fe3b8; }
+.knob .kl { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.knob:focus-visible svg { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 50%; }
+
+/* padok */
+.pads { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pad { position: relative; text-align: left; min-height: 74px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line2); cursor: pointer;
+  background: linear-gradient(180deg, #1c212c, #151922); color: var(--text); display: flex; flex-direction: column; gap: 6px; transition: transform .08s, box-shadow .15s; }
+.pad:hover { border-color: var(--dim); }
+.pad:active { transform: scale(.98); }
+.pad .pn { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pad .ps { margin-top: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.pad.onair { border-color: rgba(47,210,122,.7); box-shadow: 0 0 0 1px rgba(47,210,122,.5), 0 0 24px rgba(47,210,122,.18); background: linear-gradient(180deg, rgba(47,210,122,.14), #151922); }
+.pad.manual { border-color: rgba(180,140,255,.7); box-shadow: 0 0 0 1px rgba(180,140,255,.5), 0 0 24px rgba(180,140,255,.2); background: linear-gradient(180deg, rgba(180,140,255,.16), #151922); }
+.pad.cart { background: linear-gradient(180deg, #232036, #171522); }
+.pad.cart.playing { border-color: var(--warn); box-shadow: 0 0 0 1px rgba(255,176,32,.5), 0 0 24px rgba(255,176,32,.25); }
+.pad:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 1100px) { .studio-top { grid-template-columns: 1fr; } }
+
 @media (max-width: 1100px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g3 { grid-template-columns: 1fr 1fr; } .stat.hide-md { display: none; } }
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; }
@@ -209,6 +297,7 @@ details.b .body p { margin: 10px 0 0; }
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <symbol id="i-logo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M6 4v16M12 4v16M18 4v16"/><rect class="fill" x="3.5" y="13" width="5" height="3.2" rx="1"/><rect class="fill" x="9.5" y="7" width="5" height="3.2" rx="1"/><rect class="fill" x="15.5" y="15" width="5" height="3.2" rx="1"/></symbol>
   <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/></symbol>
   <symbol id="i-stations" viewBox="0 0 24 24"><path d="M12 12.5V21M8.5 21h7"/><circle cx="12" cy="10" r="2"/><path d="M8.3 6.3a5.3 5.3 0 0 0 0 7.4M15.7 6.3a5.3 5.3 0 0 1 0 7.4M5.5 3.5a9.2 9.2 0 0 0 0 13M18.5 3.5a9.2 9.2 0 0 1 0 13"/></symbol>
   <symbol id="i-news" viewBox="0 0 24 24"><path d="M4 5h12.5v14H6a2 2 0 0 1-2-2V5z"/><path d="M16.5 9H20v8a2 2 0 0 1-2 2"/><path d="M7.5 9h5.5M7.5 12.5h5.5M7.5 16h3.5"/></symbol>
@@ -261,7 +350,7 @@ details.b .body p { margin: 10px 0 0; }
   </header>
 
   <nav class="side" id="nav">
-    <a href="#attekintes" data-p="attekintes"><svg class="ic" aria-hidden="true"><use href="#i-overview"/></svg>Áttekintés</a>
+    <a href="#attekintes" data-p="attekintes"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Stúdió</a>
     <a href="#allomasok" data-p="allomasok"><svg class="ic" aria-hidden="true"><use href="#i-stations"/></svg>Állomások</a>
     <a href="#hirek" data-p="hirek"><svg class="ic" aria-hidden="true"><use href="#i-news"/></svg>Hírek</a>
     <a href="#napszakok" data-p="napszakok"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Napszakok</a>
@@ -462,31 +551,226 @@ function timelineHTML(dayparts, hours) {
 }
 
 /* Áttekintés */
-PAGES.attekintes = (el) => {
-  el.innerHTML = `
-  <h1>Áttekintés</h1><p class="sub">Mi szól most, mi jön, és minden, amibe azonnal bele tudsz nyúlni.</p>
-  <div class="grid">
-    <section class="stage" id="stage">
-      <canvas id="stageViz" aria-hidden="true"></canvas>
-      <div class="stage-ui">
-        <div class="stage-top"><div id="ovHeroText"></div><div class="actions" id="ovHeroActions"></div></div>
-        <div class="stage-tools">
-          <div class="seg" role="group" aria-label="Spektrum stílusa">
-            <button data-viz="bars" aria-label="Oszlopok" title="Oszlopok">${ic("bars", "sm")}</button>
-            <button data-viz="wave" aria-label="Hullám" title="Hullám">${ic("wave", "sm")}</button>
-            <button data-viz="radial" aria-label="Kör" title="Kör">${ic("radial", "sm")}</button>
+/* Stúdió: színpad, adásóra, keverőpult, állomás-deck, effekt-kártyák */
+const FADER_TOP = 12, FADER_MIN = -60;
+const posToDb = (p) => p >= 0.75 ? (p - 0.75) / 0.25 * FADER_TOP : p <= 0.001 ? FADER_MIN : FADER_MIN * Math.pow(1 - p / 0.75, 1.6);
+const dbToPos = (db) => db >= 0 ? 0.75 + db / FADER_TOP * 0.25 : db <= FADER_MIN ? 0 : 0.75 * (1 - Math.pow(db / FADER_MIN, 1 / 1.6));
+const fmtGain = (db) => db <= FADER_MIN + 0.05 ? "ki" : `${db > 0 ? "+" : ""}${db.toFixed(1)}`;
+const KFMT = {
+  db: (v) => `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`,
+  bed: (v) => v <= -59.5 ? "ki" : `${v.toFixed(0)} dB`,
+  pct: (v) => `${Math.round(v * 100)}%`,
+  sec: (v) => `${v.toFixed(1)} mp`,
+};
+const MIX_DEFAULT = { music: { gain: 0, mute: false }, news: { gain: 0, mute: false }, live: { gain: 0, mute: false }, cart: { gain: 0, mute: false },
+  master: { gain: 0, mute: false }, news_bed: -60, live_bed: -60, eq: { low: 0, mid: 0, high: 0 }, comp: 0, limiter: true, xfade: 1 };
+let mixState = null, mixSaving = false, mixDirty = false, levelData = null, levelTimer = null, meterRaf = null, lastCart = null;
+const meterState = {};
+
+const getPath = (o, path) => path.split(".").reduce((a, k) => a[k], o);
+const setPath = (o, path, v) => { const ks = path.split("."), last = ks.pop(); ks.reduce((a, k) => a[k], o)[last] = v; };
+function saveMix() {
+  if (mixSaving) { mixDirty = true; return; }
+  mixSaving = true;
+  api("PUT", "/api/mixer", mixState).catch((e) => toast(e.message, "err"))
+    .finally(() => { mixSaving = false; if (mixDirty) { mixDirty = false; saveMix(); } });
+}
+const saveMixSoon = (() => { let t; return () => { clearTimeout(t); t = setTimeout(saveMix, 50); }; })();
+
+function arcPath(r, a0, a1) {
+  const pt = (a) => [32 + r * Math.sin(a * Math.PI / 180), 32 - r * Math.cos(a * Math.PI / 180)];
+  const [x0, y0] = pt(a0), [x1, y1] = pt(a1);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${Math.abs(a1 - a0) > 180 ? 1 : 0} ${a1 > a0 ? 1 : 0} ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+function knobHTML(path, label, min, max, def, fmt) {
+  return `<div class="knob" data-knob="${path}" data-min="${min}" data-max="${max}" data-def="${def}" data-fmt="${fmt}" role="slider" tabindex="0"
+      aria-label="${label}" aria-valuemin="${min}" aria-valuemax="${max}" title="Húzd fel-le; dupla katt: alapérték">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><path class="track" d="${arcPath(26, -135, 135)}"/><path class="val"/><circle class="cap" cx="32" cy="32" r="17"/><line class="ptr" x1="32" y1="32" x2="32" y2="20"/></svg>
+    <div class="kv mono"></div><div class="kl">${label}</div></div>`;
+}
+function faderHTML(path, label) {
+  const ticks = [12, 6, 0, -6, -12, -20, -30, -45].map((db) => `<span style="bottom:${dbToPos(db) * 100}%">${db > 0 ? "+" + db : db}</span>`).join("");
+  return `<div class="fader" data-fader="${path}" role="slider" tabindex="0" aria-label="${label}" aria-valuemin="-60" aria-valuemax="12" title="Húzd; dupla katt: 0 dB">
+    <div class="scale">${ticks}</div><div class="groove"><i></i></div><div class="cap"></div></div>`;
+}
+function stripHTML(ch, label, knobs = "") {
+  return `<div class="strip" data-ch="${ch}">
+    <div class="strip-head"><span class="lamp" data-lamp="${ch}"></span>${label}</div>
+    <div class="strip-knobs">${knobs}</div>
+    <div class="strip-body">${faderHTML(ch + ".gain", label)}<canvas class="meter" data-meter="${ch}" aria-hidden="true"></canvas></div>
+    <div class="strip-foot"><span class="db mono" data-db="${ch}.gain"></span><button class="mute" data-mute="${ch}" aria-pressed="false" title="Némítás">M</button></div>
+  </div>`;
+}
+function deskHTML() {
+  return `<section class="desk" id="desk">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+      <linearGradient id="knobgrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#06b6d4"/><stop offset=".5" stop-color="#6366f1"/><stop offset="1" stop-color="#d946ef"/></linearGradient>
+      <radialGradient id="capgrad" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#3a4252"/><stop offset="1" stop-color="#191d26"/></radialGradient>
+    </defs></svg>
+    <div class="desk-head"><div class="desk-title">${ic("sliders")}Keverőpult</div>
+      <div class="row"><span class="small dim" id="deskState">kapcsolódás</span><button class="btn sm ghost" id="mixReset">${ic("auto", "sm")}Alaphelyzet</button></div></div>
+    <div class="desk-body">
+      ${stripHTML("music", "Zene")}
+      ${stripHTML("news", "Hírek", knobHTML("news_bed", "Alap", -60, 0, -60, "bed"))}
+      ${stripHTML("live", "Élő", knobHTML("live_bed", "Alap", -60, 0, -60, "bed"))}
+      ${stripHTML("cart", "Effekt")}
+      <div class="strip master" data-ch="master">
+        <div class="strip-head"><span class="lamp" data-lamp="master"></span>Master</div>
+        <div class="master-row">
+          <div class="master-knobs">
+            ${knobHTML("eq.low", "Mély", -12, 12, 0, "db")}${knobHTML("eq.mid", "Közép", -12, 12, 0, "db")}${knobHTML("eq.high", "Magas", -12, 12, 0, "db")}
+            ${knobHTML("comp", "Kompr.", 0, 1, 0, "pct")}${knobHTML("xfade", "Átúszt.", 0, 8, 1, "sec")}
+            <div class="knob" style="cursor:default"><label class="switch" style="margin-top:14px"><input type="checkbox" id="limiter"></label><div class="kv mono" id="limTxt"></div><div class="kl">Limiter</div></div>
           </div>
-          <button class="btn icon glass" id="vizFull" aria-label="Teljes képernyő" title="Teljes képernyő">${ic("max", "sm")}</button>
+          <div class="master-side">
+            <div class="strip-body">${faderHTML("master.gain", "Master")}<canvas class="meter wide" data-meter="master" aria-hidden="true"></canvas></div>
+            <div class="strip-foot"><span class="db mono" data-db="master.gain"></span><button class="mute" data-mute="master" aria-pressed="false" title="Némítás">M</button></div>
+          </div>
         </div>
       </div>
-      <button class="stage-play" id="stagePlay">${ic("headphones")}Monitor bekapcsolása</button>
-    </section>
-    <div class="grid g4" id="ovKpis"></div>
-    <div class="card"><h2>Napi műsorrend <span class="small dim">sárga jel: hírblokk</span></h2><div id="ovTimeline"></div></div>
-    <div class="grid g2">
-      <div class="card"><h2><span>Állomások most</span><span class="small dim" id="ovDp"></span></h2><div class="list" id="ovStations"></div></div>
+    </div>
+  </section>`;
+}
+
+function paintDesk() {
+  const desk = $("#desk"); if (!desk || !mixState) return;
+  desk.querySelectorAll("[data-fader]").forEach((f) => {
+    const db = getPath(mixState, f.dataset.fader), pos = dbToPos(db);
+    f.querySelector(".cap").style.bottom = `calc(${pos} * (100% - 22px))`;
+    f.querySelector(".groove i").style.height = `${pos * 100}%`;
+    f.setAttribute("aria-valuenow", db.toFixed(1));
+    f.setAttribute("aria-valuetext", fmtGain(db) + " dB");
+  });
+  desk.querySelectorAll("[data-db]").forEach((d) => d.textContent = fmtGain(getPath(mixState, d.dataset.db)));
+  desk.querySelectorAll("[data-knob]").forEach((k) => {
+    const v = getPath(mixState, k.dataset.knob), min = +k.dataset.min, max = +k.dataset.max;
+    const ang = -135 + (v - min) / (max - min) * 270;
+    const from = min < 0 && max > 0 ? 0 : -135;
+    k.querySelector(".val").setAttribute("d", Math.abs(ang - from) < 0.5 ? "" : arcPath(26, Math.min(from, ang), Math.max(from, ang)));
+    k.querySelector(".ptr").setAttribute("transform", `rotate(${ang} 32 32)`);
+    k.querySelector(".kv").textContent = KFMT[k.dataset.fmt](v);
+    k.setAttribute("aria-valuenow", v);
+    k.setAttribute("aria-valuetext", KFMT[k.dataset.fmt](v));
+  });
+  desk.querySelectorAll("[data-mute]").forEach((b) => { const on = mixState[b.dataset.mute].mute; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  $("#limiter").checked = mixState.limiter;
+  $("#limTxt").textContent = mixState.limiter ? "be" : "ki";
+}
+
+function bindDesk() {
+  const desk = $("#desk");
+  const change = (path, v) => { setPath(mixState, path, v); paintDesk(); saveMixSoon(); };
+  desk.querySelectorAll("[data-fader]").forEach((f) => {
+    const path = f.dataset.fader;
+    const fromY = (y) => { const r = f.querySelector(".groove").getBoundingClientRect(); return Math.max(0, Math.min(1, 1 - (y - r.top) / r.height)); };
+    f.onpointerdown = (e) => { f.setPointerCapture(e.pointerId); f.focus(); change(path, Math.round(posToDb(fromY(e.clientY)) * 2) / 2); };
+    f.onpointermove = (e) => { if (f.hasPointerCapture(e.pointerId)) change(path, Math.round(posToDb(fromY(e.clientY)) * 2) / 2); };
+    f.ondblclick = () => change(path, 0);
+    f.onwheel = (e) => { e.preventDefault(); const db = getPath(mixState, path); change(path, Math.max(FADER_MIN, Math.min(FADER_TOP, db - Math.sign(e.deltaY) * 0.5))); };
+    f.onkeydown = (e) => {
+      const step = { ArrowUp: 0.5, ArrowDown: -0.5, PageUp: 3, PageDown: -3 }[e.key];
+      if (step) { e.preventDefault(); change(path, Math.max(FADER_MIN, Math.min(FADER_TOP, getPath(mixState, path) + step))); }
+      if (e.key === "Home") change(path, 0);
+      if (e.key === "End") change(path, FADER_MIN);
+    };
+  });
+  desk.querySelectorAll("[data-knob]").forEach((k) => {
+    const path = k.dataset.knob, min = +k.dataset.min, max = +k.dataset.max, def = +k.dataset.def;
+    const clamp = (v) => Math.max(min, Math.min(max, v));
+    const round = (v) => max - min > 2 ? Math.round(v * 2) / 2 : Math.round(v * 100) / 100;
+    let y0 = 0, v0 = 0;
+    k.onpointerdown = (e) => { k.setPointerCapture(e.pointerId); k.focus(); y0 = e.clientY; v0 = getPath(mixState, path); };
+    k.onpointermove = (e) => { if (k.hasPointerCapture(e.pointerId)) change(path, round(clamp(v0 + (y0 - e.clientY) * (max - min) / 180))); };
+    k.ondblclick = () => change(path, def);
+    k.onwheel = (e) => { e.preventDefault(); change(path, round(clamp(getPath(mixState, path) - Math.sign(e.deltaY) * (max - min) / 48))); };
+    k.onkeydown = (e) => {
+      const step = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[e.key];
+      if (step) { e.preventDefault(); change(path, round(clamp(getPath(mixState, path) + step * (max - min) / 48))); }
+    };
+  });
+  desk.querySelectorAll("[data-mute]").forEach((b) => b.onclick = () => change(b.dataset.mute + ".mute", !mixState[b.dataset.mute].mute));
+  $("#limiter").onchange = (e) => change("limiter", e.target.checked);
+  $("#mixReset").onclick = () => { if (confirm("Minden keverőpult-beállítás vissza az alapértékre?")) { mixState = JSON.parse(JSON.stringify(MIX_DEFAULT)); paintDesk(); saveMix(); } };
+}
+
+/* szintmérők: a Liquidsoap 10-szer másodpercenként adja az RMS-t */
+async function pollLevels() {
+  clearTimeout(levelTimer);
+  if (!$("#desk")) return;
+  let wait = 100;
+  try { levelData = await api("GET", "/api/levels"); $("#deskState").textContent = "élő mérés"; }
+  catch { levelData = null; $("#deskState").textContent = "a rádió nem válaszol"; wait = 1500; }
+  paintLamps();
+  levelTimer = setTimeout(pollLevels, wait);
+}
+function paintLamps() {
+  const L = levelData || {}, onAir = { zene: "music", hirek: "news", elo: "live" }[L.on_air];
+  ["music", "news", "live"].forEach((ch) => { const l = document.querySelector(`[data-lamp="${ch}"]`); if (l) l.classList.toggle("on", onAir === ch); });
+  const c = document.querySelector('[data-lamp="cart"]'); if (c) c.classList.toggle("on", !!L.cart_playing);
+  const m = document.querySelector('[data-lamp="master"]'); if (m) m.classList.toggle("on", !!(S.status && S.status.icecast && S.status.icecast.on_air));
+  document.querySelectorAll(".pad.cart").forEach((p) => p.classList.toggle("playing", !!L.cart_playing && p.dataset.key === lastCart));
+}
+const toDb = (lin) => lin > 0 ? 20 * Math.log10(lin) : -120;
+function drawMeters(t) {
+  if (!$("#desk")) { meterRaf = null; return; }
+  meterRaf = requestAnimationFrame(drawMeters);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), segs = 30, lo = -48, hi = 3;
+  document.querySelectorAll("canvas[data-meter]").forEach((cv) => {
+    const ch = cv.dataset.meter, st = meterState[ch] || (meterState[ch] = { v: lo, pk: lo, pkT: 0 });
+    const target = levelData ? Math.max(lo, toDb(levelData[ch] || 0) + (ch === "master" ? 0 : 0)) : lo;
+    st.v += (target - st.v) * (target > st.v ? 0.5 : 0.12);
+    const peakIn = ch === "master" && levelData ? Math.max(lo, toDb(levelData.peak || 0)) : st.v;
+    if (peakIn >= st.pk) { st.pk = peakIn; st.pkT = t + 1200; } else if (t > st.pkT) st.pk = Math.max(st.v, st.pk - 0.4);
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    const gap = 2, sh = (h - gap * (segs - 1)) / segs, lit = (st.v - lo) / (hi - lo) * segs, pkSeg = Math.floor((st.pk - lo) / (hi - lo) * segs);
+    for (let i = 0; i < segs; i++) {
+      const db = lo + (i + 0.5) / segs * (hi - lo), y = h - (i + 1) * sh - i * gap;
+      const col = db >= -3 ? [255, 69, 69] : db >= -12 ? [255, 176, 32] : [47, 210, 122];
+      const on = i < lit || i === pkSeg;
+      ctx.fillStyle = on ? `rgb(${col})` : `rgba(${col},.09)`;
+      if (on) { ctx.shadowBlur = 6; ctx.shadowColor = `rgba(${col},.8)`; } else ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(0, y, w, sh, 1.5) : ctx.rect(0, y, w, sh); ctx.fill();
+    }
+  });
+}
+
+PAGES.attekintes = async (el, tk) => {
+  el.innerHTML = `
+  <div class="grid">
+    <div class="studio-top">
+      <section class="stage" id="stage">
+        <canvas id="stageViz" aria-hidden="true"></canvas>
+        <div class="stage-ui">
+          <div class="stage-top"><div id="ovHeroText"></div><div class="actions" id="ovHeroActions"></div></div>
+          <div class="stage-tools">
+            <div class="seg" role="group" aria-label="Spektrum stílusa">
+              <button data-viz="bars" aria-label="Oszlopok" title="Oszlopok">${ic("bars", "sm")}</button>
+              <button data-viz="wave" aria-label="Hullám" title="Hullám">${ic("wave", "sm")}</button>
+              <button data-viz="radial" aria-label="Kör" title="Kör">${ic("radial", "sm")}</button>
+            </div>
+            <button class="btn icon glass" id="vizFull" aria-label="Teljes képernyő" title="Teljes képernyő">${ic("max", "sm")}</button>
+          </div>
+        </div>
+        <button class="stage-play" id="stagePlay">${ic("headphones")}Monitor bekapcsolása</button>
+      </section>
+      <aside class="card clockcard">
+        <div><div class="bigclock mono" id="stClock">--:--</div><div class="muted small" id="stDate"></div></div>
+        <div class="cd"><div class="row between"><span class="l">Következő hír</span><span class="mono small muted" id="stNextAt"></span></div>
+          <div class="cdv mono" id="stCount">--:--</div><div class="cdbar"><i id="stCountBar"></i></div></div>
+        <div class="lamps" id="stLamps"></div>
+      </aside>
+    </div>
+    ${deskHTML()}
+    <div class="grid g3">
+      <div class="card"><h2><span>Állomás-deck</span><span class="small dim" id="deckDp"></span></h2><div class="pads" id="deck"></div></div>
+      <div class="card"><h2><span>Effekt-kártyák</span><button class="btn sm ghost" id="cartStop">${ic("stop", "sm")}Leállít</button></h2><div class="pads" id="carts"><div class="empty">Betöltés</div></div></div>
       <div class="card"><h2>Hírek</h2><div id="ovNews"></div></div>
     </div>
+    <div class="card"><h2>Napi műsorrend <span class="small dim">sárga jel: hírblokk</span></h2><div id="ovTimeline"></div></div>
   </div>`;
   stageViz = new AiradioSpectrum($("#stageViz"), { bars: 72, top: 0.34, mode: store.get("airadio.viz") || "bars" });
   if (analyser) stageViz.attach(analyser);
@@ -498,8 +782,42 @@ PAGES.attekintes = (el) => {
   syncSeg();
   $("#stagePlay").onclick = () => { if (mon.paused) monitorToggle(); };
   $("#vizFull").onclick = () => document.fullscreenElement ? document.exitFullscreen() : $("#stage").requestFullscreen().catch(() => toast("A teljes képernyő nem érhető el", "err"));
+  $("#cartStop").onclick = () => api("POST", "/api/cart", { stop: true }).catch((e) => toast(e.message, "err"));
   renderOverviewLive();
+  tickClock();
+
+  const [mix, jingles, backup] = await Promise.all([
+    api("GET", "/api/mixer").catch(() => JSON.parse(JSON.stringify(MIX_DEFAULT))),
+    api("GET", "/api/library/jingles").catch(() => []), api("GET", "/api/library/backup").catch(() => []),
+  ]);
+  if (stale(tk)) return;
+  mixState = mix; paintDesk(); bindDesk(); pollLevels();
+  if (!meterRaf) meterRaf = requestAnimationFrame(drawMeters);
+  const names = { "hirek_eleje.wav": "Hírszignál eleje", "hirek_vege.wav": "Hírszignál vége" };
+  const carts = [...jingles.map((f) => ({ kind: "jingles", name: f.name, label: names[f.name] || f.name })),
+                 ...backup.slice(0, 15).map((f) => ({ kind: "backup", name: f.name, label: f.name.replace(/\.[a-z0-9]+$/i, "") }))];
+  $("#carts").innerHTML = carts.length ? carts.map((c, i) => `<button class="pad cart" data-cart="${i}" data-key="${esc(c.kind + "/" + c.name)}">
+      <span class="pn">${esc(c.label)}</span><span class="ps">${ic(c.kind === "jingles" ? "news" : "music", "xs")}${c.kind === "jingles" ? "szignál" : "zenetár"}</span></button>`).join("")
+    : `<div class="empty">Tölts fel hangfájlt a <a href="#zenetar">Zenetárba</a>, és itt egy gombnyomással adásba küldheted.</div>`;
+  $("#carts").querySelectorAll("[data-cart]").forEach((b) => b.onclick = async () => {
+    const c = carts[+b.dataset.cart]; lastCart = c.kind + "/" + c.name;
+    try { await api("POST", "/api/cart", { kind: c.kind, name: c.name }); toast("Adásban: " + c.label); } catch (e) { toast(e.message, "err"); }
+  });
 };
+function tickClock() {
+  const box = $("#stClock"); if (!box) return;
+  const d = serverNow();
+  box.innerHTML = `${pad(d.getHours())}:${pad(d.getMinutes())}<span class="sec">:${pad(d.getSeconds())}</span>`;
+  $("#stDate").textContent = d.toLocaleDateString("hu-HU", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const n = S.status && S.status.news.next;
+  if (n) {
+    const left = Math.max(0, (new Date(n.slot) - d) / 1000);
+    $("#stCount").textContent = left >= 3600 ? `${Math.floor(left / 3600)}:${pad(Math.floor(left % 3600 / 60))}:${pad(Math.floor(left % 60))}` : `${pad(Math.floor(left / 60))}:${pad(Math.floor(left % 60))}`;
+    $("#stNextAt").textContent = fmtTime(n.slot) + (n.ready ? " · kész" : "");
+    $("#stCountBar").style.width = `${Math.max(0, Math.min(100, (1 - left / 3600) * 100))}%`;
+  } else { $("#stCount").textContent = "--:--"; $("#stNextAt").textContent = "nincs beállítva"; }
+}
+setInterval(tickClock, 250);
 document.addEventListener("fullscreenchange", () => { const b = $("#vizFull"); if (b) b.innerHTML = ic(document.fullscreenElement ? "min" : "max", "sm"); });
 function renderOverviewLive() {
   const st = S.status; if (!st || !$("#ovHeroText")) return;
@@ -515,24 +833,26 @@ function renderOverviewLive() {
       ${r.on_air === "hirek" ? `<button class="btn danger glass" data-act="skipnews">${ic("stop", "sm")}Hír leállítása</button>` : ""}
       <button class="btn glass" data-act="nextst">${ic("skip", "sm")}Következő állomás</button>
       ${manual ? `<button class="btn glass" data-act="auto">${ic("auto", "sm")}Vissza automatára</button>` : ""}`;
-  const last = st.news.last;
-  $("#ovKpis").innerHTML = [
-    ["Hallgatók", ice.on_air ? `${ice.listeners}<span class="small dim"> / csúcs ${ice.peak}</span>` : "–"],
-    ["Adás", ice.on_air ? '<span style="color:var(--ok)">Kint van</span>' : '<span style="color:var(--onair)">Nincs adás</span>'],
-    ["Következő hír", st.news.next ? `${fmtTime(st.news.next.slot)} <span class="small ${st.news.next.ready ? "" : "dim"}">${st.news.next.ready ? "kész" : "készül :50-kor"}</span>` : "nincs beállítva"],
-    ["Claude", st.api_key ? `<span class="small">${esc(st.model)}</span>` : '<span style="color:var(--warn)" class="small">nincs API-kulcs</span>'],
-  ].map(([l, v]) => `<div class="card kpi"><div class="l">${l}</div><div class="v" style="font-size:20px;margin-top:4px">${v}</div></div>`).join("");
+  const lamp = (label, state, value = "") => `<div class="lampi"><span class="led ${state}"></span>${label}<span class="v">${value}</span></div>`;
+  $("#stLamps").innerHTML = [
+    lamp("Adás kint", ice.on_air ? "ok" : "bad", ice.on_air ? `${ice.listeners} hallgató` : "nincs"),
+    lamp("Lejátszómotor", r.on_air && !r.stale ? "ok" : "bad", r.started ? "fut " + fmtTime(r.started.replace(" ", "T")) + " óta" : ""),
+    lamp("Élő bemenet", r.live ? "bad" : "", r.live ? "ÉLŐ" : "nincs"),
+    lamp("Következő hír", st.news.next ? (st.news.next.ready ? "ok" : "warn") : "", st.news.next ? (st.news.next.ready ? "kész" : "készül") : "ki"),
+    lamp("Claude", st.api_key ? "ok" : "warn", st.api_key ? esc(st.model.replace("claude-", "")) : "nincs kulcs"),
+  ].join("");
   $("#ovTimeline").innerHTML = timelineHTML(st.dayparts, st.news.hours);
-  $("#ovDp").textContent = r.daypart ? r.daypart : "";
-  const list = (r.stations || []);
-  $("#ovStations").innerHTML = list.length ? list.map((s) => {
-    const isManual = r.override === s.url, playing = !r.override && r.url === s.url && r.on_air === "allomas";
-    return `<div class="item ${isManual ? "manual" : playing ? "playing" : ""}">
-      <span class="dot ${s.ready ? "ok" : "bad"}" title="${s.ready ? "szól" : "nem szól"}"></span>
-      <div class="grow"><div class="name">${esc(s.name)}</div><div class="url">${esc(s.url)}</div></div>
-      ${playing ? '<span class="badge ok">adásban</span>' : isManual ? '<span class="badge manual">kézi</span>' : ""}
-      <button class="btn sm" data-play="${esc(s.url)}" ${s.ready ? "" : "disabled"}>Ezt játszd</button></div>`;
-  }).join("") : `<div class="empty">Ebben a napszakban nincs állomás, a tartalék zene szól.<br><a href="#allomasok">Állomások beállítása ${ic("arrow", "xs")}</a></div>`;
+  $("#deckDp").textContent = r.daypart ? r.daypart + " napszak" : "";
+  const all = r.all_stations || [], current = new Set((r.stations || []).map((s) => s.url));
+  const autoOn = !r.override;
+  $("#deck").innerHTML = `<button class="pad ${autoOn ? "onair" : ""}" data-act="auto"><span class="pn">Automata</span><span class="ps">${ic("auto", "xs")}napszak szerint</span></button>` +
+    all.map((s) => {
+      const isManual = r.override === s.url, playing = autoOn && r.url === s.url && r.on_air === "allomas";
+      return `<button class="pad ${isManual ? "manual" : playing ? "onair" : ""}" data-play="${esc(s.url)}" ${s.ready ? "" : "disabled"} title="${esc(s.url)}">
+        <span class="pn">${esc(s.name)}</span>
+        <span class="ps"><span class="led ${s.ready ? "ok" : "bad"}" style="width:7px;height:7px"></span>${isManual ? "kézi, adásban" : playing ? "adásban" : current.has(s.url) ? "ebben a napszakban" : s.ready ? "készen" : "nem szól"}</span></button>`;
+    }).join("");
+  const last = st.news.last;
   $("#ovNews").innerHTML = `
     <div class="stack">
       ${last ? `<div class="item"><div class="grow"><div class="name">Utolsó: ${fmtDate(last.created)} <span class="badge">${kindLabel(last.kind)}</span></div>
