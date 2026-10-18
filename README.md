@@ -47,12 +47,22 @@ Hírblokk azonnal, adásba: `docker compose exec -u airadio radio airadio news -
 
 Napló: `docker compose logs -f`. Leállítás: `docker compose down`. Élő adás helyben a 8015-ös porton megy, a többi az Élő adás résznél leírtak szerint.
 
+### Automatikus frissítés (Mac)
+
+Egyszer kell lefuttatni a Terminálban, miközben a rádió már fut a Dockerben:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/makifej/ai-radio/main/deploy/mac/install-autoupdate.sh | bash
+```
+
+A telepítő a rádió mappáját a `~/ai-radio` helyre teszi (a macOS a háttérfolyamatoknak nem engedi a Letöltések, az Asztal és a Dokumentumok mappát), majd egy launchd feladatot állít be. Ez kétpercenként megnézi, van-e új változat a GitHubon, és ha van, letölti, majd újraépíti a konténert; közben az adás fél percre megszakadhat. Az `.env` és a `data` mappa nem változik. Napló: `~/ai-radio/data/log/frissites.log`. Kikapcsolás: `launchctl bootout gui/$(id -u)/hu.airadio.autoupdate`.
+
 ## Telepítés Oracle Cloud Always Free szerverre
 
 Hozz létre egy Ubuntu 24.04 példányt (az Ampere A1, ARM is megfelelő). A konzolban a példány alhálózatának Security Listjébe vegyél fel bejövő TCP szabályt a 8000-es portra (hallgatás), és ha élőben is adnál, a 8005-ösre. A szerveren lévő tűzfalat a telepítő nyitja meg; az Oracle Ubuntu képein ez külön lépés, mert az alap iptables szabály minden mást elutasít.
 
 ```sh
-git clone https://github.com/<felhasználó>/ai-radio.git
+git clone https://github.com/makifej/ai-radio.git
 cd ai-radio
 sudo ANTHROPIC_API_KEY=sk-ant-... ./deploy/install.sh
 ```

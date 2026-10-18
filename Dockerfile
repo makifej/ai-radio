@@ -14,11 +14,17 @@ RUN apt-get update \
 
 WORKDIR /opt/airadio
 
+# Előbb csak a függőségek, egy üres csomaggal: ez a réteg csak a pyproject.toml
+# változásakor épül újra, így egy kódfrissítés után nem tölt le mindent újra.
 COPY pyproject.toml ./
-COPY airadio ./airadio
 RUN python3 -m venv venv \
+ && mkdir airadio && touch airadio/__init__.py \
  && venv/bin/pip install --no-cache-dir . \
- && ln -s /opt/airadio/venv/bin/airadio /usr/local/bin/airadio
+ && rm -rf airadio build *.egg-info
+COPY airadio ./airadio
+RUN venv/bin/pip install --no-cache-dir --no-deps --force-reinstall . \
+ && rm -rf build *.egg-info \
+ && ln -sf /opt/airadio/venv/bin/airadio /usr/local/bin/airadio
 
 COPY radio ./radio
 COPY config ./config
