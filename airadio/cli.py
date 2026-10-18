@@ -96,7 +96,8 @@ def cmd_status(cfg, args) -> int:
 def cmd_dashboard(cfg, args) -> int:
     from . import dashboard
 
-    dashboard.serve(Path(args.config or os.environ.get("AIRADIO_CONFIG", config_mod.DEFAULT_PATH)), args.host, args.port)
+    dashboard.serve(Path(args.config or os.environ.get("AIRADIO_CONFIG", config_mod.DEFAULT_PATH)), args.host, args.port,
+                    args.public_port)
     return 0
 
 
@@ -133,6 +134,8 @@ def build_parser() -> argparse.ArgumentParser:
     d = sub.add_parser("dashboard", help="webes irányítópult indítása")
     d.add_argument("--host", default="127.0.0.1")
     d.add_argument("--port", type=int, default=8080)
+    d.add_argument("--public-port", type=int, default=0,
+                   help="hallgatói oldal stílusválasztással ezen a porton (jelszó nélkül, csak lejátszás és stílus)")
     d.set_defaults(func=cmd_dashboard)
     return p
 

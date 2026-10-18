@@ -1,5 +1,5 @@
 # Indítás:  docker compose up -d --build
-# Hallgatás: http://localhost:8010, irányítópult: http://localhost:8020
+# Hallgatás és stílusválasztás: http://localhost:8010, irányítópult: http://localhost:8020
 # (a portok az .env fájlban átírhatók: AIRADIO_PORT, AIRADIO_ADMIN_PORT)
 services:
   radio:
@@ -7,7 +7,8 @@ services:
     container_name: airadio
     restart: unless-stopped
     ports:
-      - "${AIRADIO_PORT:-8010}:8000"
+      # Hallgatói oldal (lejátszó, adás, stílusválasztás); a nyers adás: /radio.mp3
+      - "${AIRADIO_PORT:-8010}:8081"
       - "${AIRADIO_LIVE_PORT:-8015}:8005"
       # Az irányítópult csak erről a gépről érhető el.
       - "127.0.0.1:${AIRADIO_ADMIN_PORT:-8020}:8080"
@@ -26,12 +27,12 @@ services:
 
   # Nyilvános https-cím a hallgatói oldalhoz (telefonról, mobilnetről is), fiók nélkül:
   # Cloudflare Quick Tunnel. A cím véletlenszerű, és a konténer újraindulásakor változik;
-  # az irányítópult Stúdió nézete mutatja QR-kóddal. Csak a lejátszó és az adás kerül ki,
-  # az irányítópult nem. Ha nem kell: docker compose stop tunnel
+  # az irányítópult Stúdió nézete mutatja QR-kóddal. Csak a lejátszó, az adás és a
+  # stílusválasztás kerül ki, az irányítópult nem. Ha nem kell: docker compose stop tunnel
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: airadio-tunnel
     restart: unless-stopped
-    command: tunnel --metrics 0.0.0.0:2000 --url http://radio:8000
+    command: tunnel --metrics 0.0.0.0:2000 --url http://radio:8081
     depends_on:
       - radio

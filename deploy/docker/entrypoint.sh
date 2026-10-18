@@ -82,7 +82,8 @@ icecast2 -c "$CONF/icecast.xml" &
 sleep 1
 radio_loop &
 news_loop &
-airadio dashboard --host 0.0.0.0 --port 8080 &
+# 8080: irányítópult (csak a saját gépről), 8081: hallgatói oldal stílusválasztással
+airadio dashboard --host 0.0.0.0 --port 8080 --public-port 8081 &
 
 echo "AI Rádió fut: http://localhost:${AIRADIO_PORT:-8010}"
 echo "Irányítópult: http://localhost:${AIRADIO_ADMIN_PORT:-8020}"

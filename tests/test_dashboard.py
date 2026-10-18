@@ -325,3 +325,40 @@ def test_phone_addresses(server, monkeypatch):
         assert x["lan"] is None
     finally:
         metrics.shutdown()
+
+
+def test_public_listener_server_allows_only_listening_and_styles(server, tmp_path):
+    from airadio import styles
+    from airadio.stations import Found
+
+    app = server["app"]
+    app.relay = relay = FakeRelay()
+    app._catalog = styles.Catalog(tmp_path / "styles.json", styles.DEFAULT_STYLES,
+                                  lambda q: [Found(name="Adó", url=f"http://ado/{q.tag}", codec="MP3", bitrate=128, tags=q.tag, countrycode="")])
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), dashboard.make_public_handler(app))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_port}"
+    try:
+        status, page = call(base, "GET", "/")
+        assert status == 200 and "Stílus".encode() in page and b"/api/styles" in page
+        _, lst = call(base, "GET", "/api/styles")
+        assert len(lst["styles"]) == len(styles.DEFAULT_STYLES)
+        _, now = call(base, "GET", "/api/now")
+        assert set(now) >= {"name", "on_air", "title", "station", "style", "override"}
+
+        status, st = call(base, "POST", "/api/style", {"style": "chill", "station": "http://bármi/kívülről"})
+        assert status == 200 and st["style"] == "chill"
+        assert wait_until(lambda: any(c[0] == "play" for c in relay.calls))
+        assert relay.calls[-1][3] == ""  # kívülről nem adható meg tetszőleges cím
+        call(base, "POST", "/api/style/next")
+        assert relay.calls[-1] == ("next",)
+        call(base, "POST", "/api/auto")
+        assert relay.calls[-1] == ("stop",)
+
+        # minden más zárva: beállítás, vezérlés, napló, hírek
+        for method, path in (("GET", "/api/config"), ("GET", "/api/status"), ("POST", "/api/control"),
+                             ("GET", "/api/logs"), ("POST", "/api/news/now"), ("PUT", "/api/mixer")):
+            status, _ = call(base, method, path, {} if method != "GET" else None)
+            assert status == 404, (method, path, status)
+    finally:
+        srv.shutdown()

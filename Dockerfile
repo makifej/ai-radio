@@ -30,8 +30,8 @@ COPY radio ./radio
 COPY config ./config
 COPY deploy ./deploy
 # Hallgatói lejátszó és a spektrum-megjelenítő az Icecast gyökércímén
-RUN cp radio/player.html airadio/web/viz.js /usr/share/icecast2/web/
+RUN cp airadio/web/player.html airadio/web/viz.js /usr/share/icecast2/web/
 
 VOLUME /var/lib/airadio
-EXPOSE 8000 8005 8080
+EXPOSE 8000 8005 8080 8081
 ENTRYPOINT ["/opt/airadio/deploy/docker/entrypoint.sh"]

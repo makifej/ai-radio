@@ -699,6 +699,29 @@ class Dashboard:
             return [f"({path.name} még nincs)"]
         return data.splitlines()[-lines:]
 
+    def now_playing(self) -> dict:
+        """Ami most szól, a hallgatói oldalnak (név, cím, állomás, stílus)."""
+        cfg = self.cfg()
+        radio: dict = {}
+        try:
+            radio = json.loads(cfg.status_file.read_text())
+            if time.time() - cfg.status_file.stat().st_mtime > STATUS_STALE_SECONDS:
+                radio = {}
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        style = self.relay.state()
+        on_air = radio.get("on_air")
+        if on_air == "hirek":
+            title, station = "Hírek", cfg.name
+        elif on_air == "stilus":
+            title = style.get("title") or radio.get("title", "")
+            station = f"{style['station']['name']} · {style['name']}" if style.get("station") else style.get("name", "")
+        else:
+            title = " – ".join(x for x in (radio.get("artist"), radio.get("title")) if x)
+            station = "tartalék zene" if on_air == "tartalek" else radio.get("station", "")
+        return {"name": cfg.name, "on_air": on_air, "title": title, "station": station,
+                "override": radio.get("override", ""), "style": style}
+
     # hallgatás telefonon
 
     def phone(self) -> dict:
@@ -740,52 +763,73 @@ class Dashboard:
 # --- HTTP ---------------------------------------------------------------------------------
 
 
+class _Base(BaseHTTPRequestHandler):
+    """Közös válaszadó segédek; az `app`-ot a make_*_handler állítja be."""
+
+    app: "Dashboard"
+
+    server_version = "airadio"
+
+    def log_message(self, fmt, *args):
+        log.debug("%s %s", self.address_string(), fmt % args)
+
+    # válaszok
+
+    def _json(self, data, status: int = 200) -> None:
+        body = json.dumps(data, ensure_ascii=False).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _file(self, path: Path, ctype: str) -> None:
+        size = path.stat().st_size
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(size))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        with path.open("rb") as f:
+            shutil.copyfileobj(f, self.wfile)
+
+    def _bytes(self, data: bytes, ctype: str) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _body(self) -> dict:
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > MAX_JSON:
+            raise ApiError(413, "Túl nagy kérés")
+        if not length:
+            return {}
+        try:
+            return json.loads(self.rfile.read(length))
+        except json.JSONDecodeError:
+            raise ApiError(400, "Hibás JSON") from None
+
+
+    def _stream(self) -> None:
+        """Az adás továbbítása azonos eredetről, hogy a böngésző hangszintmérője működjön."""
+        try:
+            upstream = _no_proxy.open(f"{self.app.icecast}/{self.app.mount}", timeout=10)
+        except Exception:
+            raise ApiError(503, "Az adás most nem érhető el") from None
+        with upstream:
+            self.send_response(200)
+            self.send_header("Content-Type", upstream.headers.get("Content-Type", "audio/mpeg"))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            while chunk := upstream.read1(16384):
+                self.wfile.write(chunk)
+
+
 def make_handler(app: Dashboard, password: str):
-    class Handler(BaseHTTPRequestHandler):
-        server_version = "airadio"
-
-        def log_message(self, fmt, *args):
-            log.debug("%s %s", self.address_string(), fmt % args)
-
-        # válaszok
-
-        def _json(self, data, status: int = 200) -> None:
-            body = json.dumps(data, ensure_ascii=False).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
-
-        def _file(self, path: Path, ctype: str) -> None:
-            size = path.stat().st_size
-            self.send_response(200)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(size))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            with path.open("rb") as f:
-                shutil.copyfileobj(f, self.wfile)
-
-        def _bytes(self, data: bytes, ctype: str) -> None:
-            self.send_response(200)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
-
-        def _body(self) -> dict:
-            length = int(self.headers.get("Content-Length") or 0)
-            if length > MAX_JSON:
-                raise ApiError(413, "Túl nagy kérés")
-            if not length:
-                return {}
-            try:
-                return json.loads(self.rfile.read(length))
-            except json.JSONDecodeError:
-                raise ApiError(400, "Hibás JSON") from None
-
+    class Handler(_Base):
         def _authorized(self) -> bool:
             if not password:
                 return True
@@ -929,29 +973,85 @@ def make_handler(app: Dashboard, password: str):
                 return self._json(app.live_info(host))
             raise ApiError(404, "Nincs ilyen végpont")
 
-        def _stream(self) -> None:
-            """Az adás továbbítása azonos eredetről, hogy a böngésző hangszintmérője működjön."""
-            try:
-                upstream = _no_proxy.open(f"{app.icecast}/{app.mount}", timeout=10)
-            except Exception:
-                raise ApiError(503, "Az adás most nem érhető el") from None
-            with upstream:
-                self.send_response(200)
-                self.send_header("Content-Type", upstream.headers.get("Content-Type", "audio/mpeg"))
-                self.send_header("Cache-Control", "no-store")
-                self.end_headers()
-                while chunk := upstream.read1(16384):
-                    self.wfile.write(chunk)
-
+    Handler.app = app
     return Handler
 
 
-def serve(config_path: Path, host: str, port: int) -> None:
+def make_public_handler(app: Dashboard):
+    """Hallgatói kiszolgáló (telefon, alagút, wifi): lejátszó, adás és stílusválasztás, semmi más.
+
+    Nincs jelszava, ezért csak olyat enged, ami a hallgatáshoz kell: a beállítások,
+    a keverőpult, a hírek és a napló itt nem érhetők el.
+    """
+
+    class Public(_Base):
+        def do_GET(self):
+            self._dispatch("GET")
+
+        def do_POST(self):
+            self._dispatch("POST")
+
+        def do_PUT(self):
+            self._dispatch("PUT")
+
+        def do_DELETE(self):
+            self._dispatch("DELETE")
+
+        def _dispatch(self, method: str) -> None:
+            path = urllib.parse.urlsplit(self.path).path
+            try:
+                self._route(method, path)
+            except ApiError as e:
+                self._json({"error": str(e)}, e.status)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            except Exception:
+                log.exception("Hiba (hallgatói oldal): %s %s", method, self.path)
+                self._json({"error": "Belső hiba"}, 500)
+
+        def _route(self, method: str, path: str) -> None:
+            if method == "GET":
+                if path in ("/", "/index.html", "/player.html"):
+                    return self._file(WEB_DIR / "player.html", "text/html; charset=utf-8")
+                if path == "/viz.js":
+                    return self._file(WEB_DIR / "viz.js", "text/javascript; charset=utf-8")
+                if path == "/" + app.mount:
+                    return self._stream()
+                if path == "/status-json.xsl":
+                    try:
+                        with _no_proxy.open(f"{app.icecast}/status-json.xsl", timeout=3) as resp:
+                            return self._bytes(resp.read(), "application/json; charset=utf-8")
+                    except OSError:
+                        raise ApiError(503, "Az Icecast nem válaszol") from None
+                if path == "/api/now":
+                    return self._json(app.now_playing())
+                if path == "/api/styles":
+                    return self._json(app.styles())
+            if method == "POST":
+                if path == "/api/style":
+                    return self._json(app.set_style({"style": str(self._body().get("style") or "")}))
+                if path == "/api/style/next":
+                    return self._json(app.next_style_station())
+                if path == "/api/auto":
+                    app.control({"override": ""})
+                    return self._json(app.relay.state())
+            raise ApiError(404, "Nincs ilyen oldal")
+
+    Public.app = app
+    return Public
+
+
+def serve(config_path: Path, host: str, port: int, public_port: int = 0) -> None:
     app = Dashboard(config_path)
     app.cfg()  # hibás beállítással ne induljon el csendben
     password = os.environ.get("ADMIN_PASSWORD", "")
     server = ThreadingHTTPServer((host, port), make_handler(app, password))
     server.daemon_threads = True
     log.info("Irányítópult: http://%s:%d%s", host, port, " (jelszóval)" if password else "")
+    if public_port:
+        public = ThreadingHTTPServer((host, public_port), make_public_handler(app))
+        public.daemon_threads = True
+        threading.Thread(target=public.serve_forever, name="hallgatoi", daemon=True).start()
+        log.info("Hallgatói oldal stílusválasztással: http://%s:%d", host, public_port)
     app.resume_style()
     server.serve_forever()

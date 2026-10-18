@@ -51,6 +51,8 @@ Napló: `docker compose logs -f`. Leállítás: `docker compose down`. Élő ad�
 
 ### Hallgatás telefonon
 
+A hallgatói oldalon (`http://localhost:8010`, a wifis és a nyilvános cím is ez) a lejátszó alatt stílus is választható: a kiemelt hét csempe és az Automata, alattuk csoportonként vagy kereséssel mind a 171 stílus, és a „Következő állomás” gomb. Ezt az oldalt az irányítópult egy külön, jelszó nélküli kiszolgálója adja (`airadio dashboard --public-port`), amely csak a lejátszást és a stílusváltást engedi; beállítás, keverőpult, hírek és napló innen nem érhető el. Aki ismeri a címet, stílust is válthat.
+
 A Docker-változat a rádió mellett egy Cloudflare-alagutat is indít (`tunnel` szolgáltatás, fiók nélküli Quick Tunnel). Ez nyilvános `https://….trycloudflare.com` címet ad a hallgatói lejátszónak, így mobilnetről is szól. Az irányítópult Stúdió nézetében a „Hallgatás telefonon” kártyán QR-kóddal látszik ez a cím, és az otthoni wifis cím is (`http://<a Mac címe>:8010`, ezt az automatikus frissítő írja a `data/host.json` fájlba). A nyilvános cím a Docker vagy a Mac újraindításakor megváltozik, és csak addig él, amíg a Mac és a Docker fut; a Cloudflare a Quick Tunnelre nem vállal rendelkezésre állást. Csak a lejátszó és az adás kerül ki, az irányítópult nem. Kikapcsolás: `docker compose stop tunnel`.
 
 Telefonon a lejátszó a hangot nem vezeti át a Web Audión, mert iOS-en lezárt képernyőnél így elnémulhat; a spektrum ott ütemre lüktető mintát mutat. A zárolási képernyőn a dalcím és a lejátszás gomb is megjelenik.

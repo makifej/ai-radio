@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-PAGES = ["airadio/web/dashboard.html", "airadio/web/viz.js", "radio/player.html"]
+PAGES = ["airadio/web/dashboard.html", "airadio/web/viz.js", "airadio/web/player.html"]
 # tipográfia megengedett: nagykötőjel, hármaspont, magyar idézőjelek
 ALLOWED = set("–…„”")
 
