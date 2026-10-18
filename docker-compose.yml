@@ -1,0 +1,18 @@
+# Indítás:  docker compose up -d --build
+# Hallgatás: http://localhost:8010  (a port az .env fájlban átírható: AIRADIO_PORT)
+services:
+  radio:
+    build: .
+    container_name: airadio
+    restart: unless-stopped
+    ports:
+      - "${AIRADIO_PORT:-8010}:8000"
+      - "${AIRADIO_LIVE_PORT:-8015}:8005"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AIRADIO_PORT: ${AIRADIO_PORT:-8010}
+      TZ: Europe/Budapest
+    volumes:
+      # Itt van a beállítás (config/radio.toml), a tartalék zene (backup/),
+      # a letöltött hangok és a hírblokkok; a konténer újraépítése után is megmaradnak.
+      - ./data:/var/lib/airadio

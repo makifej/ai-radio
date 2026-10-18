@@ -39,6 +39,8 @@ fi
 echo "== Program"
 install -d "$APP"
 rsync -a --delete "$REPO/radio/" "$APP/radio/"
+# Böngészős lejátszó az Icecast gyökércímén (http://<szerver>:8000/)
+install -m 644 "$REPO/radio/player.html" /usr/share/icecast2/web/player.html
 [[ -d $APP/venv ]] || python3 -m venv "$APP/venv"
 "$APP/venv/bin/pip" install -q --upgrade pip
 "$APP/venv/bin/pip" install -q "$REPO"

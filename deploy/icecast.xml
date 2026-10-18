@@ -32,7 +32,7 @@
         <logdir>@LOGDIR@</logdir>
         <webroot>/usr/share/icecast2/web</webroot>
         <adminroot>/usr/share/icecast2/admin</adminroot>
-        <alias source="/" destination="/status.xsl"/>
+        <alias source="/" destination="/player.html"/>
     </paths>
 
     <logging>

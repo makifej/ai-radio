@@ -47,7 +47,7 @@ def cmd_stations_search(cfg, args) -> int:
 
 def cmd_stations_render(cfg, args) -> int:
     path = stations.write(cfg, stations.resolve(cfg))
-    print(f"Kész: {path}. Életbe lép: sudo systemctl restart airadio-radio")
+    print(f"Kész: {path}. A rádió újraindítása után lép életbe (systemctl restart airadio-radio, Dockerben: docker compose restart).")
     return 0
 
 

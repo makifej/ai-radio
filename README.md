@@ -15,6 +15,26 @@ Az **airadio** Python csomag minden óra 50. percében (systemd timer) elkészí
 
 A kész fájl `/var/lib/airadio/news/hirek-ÉÉÉÉHHNN-ÓÓ.wav`; a Liquidsoap az óra első öt percében indítja. Ha bármelyik lépés elakad, abban az órában csak zene szól. Élő adás alatt a hír kimarad.
 
+## Helyi futtatás a saját gépen (Mac, Windows, Linux)
+
+Kell hozzá a Docker Desktop. A kicsomagolt mappában:
+
+```sh
+cp .env.example .env        # írd bele az ANTHROPIC_API_KEY-t
+docker compose up -d --build
+```
+
+Utána böngészőben (Dia, Chrome, Safari): `http://localhost:8010`. Ez a lejátszóoldal, a nyers stream a `http://localhost:8010/radio.mp3` címen érhető el. A 8010-es portot azért választottuk, mert a 8000-est gyakran más helyi alkalmazás foglalja. Ha a 8010 is foglalt, az `.env` fájlban az `AIRADIO_PORT` értékével átírható.
+
+Az első indulás néhány percig tart: a Docker felépíti a környezetet, letölti a Piper hangokat, és összeállítja az állomáslistát. Minden adat a `data` mappába kerül. A beállítás itt van: `data/config/radio.toml`. A tartalék zenét a `data/backup` mappába másold, a jelszavakat a `data/config/secrets.env` tartalmazza. Beállítás vagy állomáslista módosítása után:
+
+```sh
+docker compose exec -u airadio radio airadio stations render
+docker compose restart
+```
+
+Napló: `docker compose logs -f`. Leállítás: `docker compose down`. Élő adás helyben a 8015-ös porton megy, a többi az Élő adás résznél leírtak szerint.
+
 ## Telepítés Oracle Cloud Always Free szerverre
 
 Hozz létre egy Ubuntu 24.04 példányt (az Ampere A1, ARM is megfelelő). A konzolban a példány alhálózatának Security Listjébe vegyél fel bejövő TCP szabályt a 8000-es portra (hallgatás), és ha élőben is adnál, a 8005-ösre. A szerveren lévő tűzfalat a telepítő nyitja meg; az Oracle Ubuntu képein ez külön lépés, mert az alap iptables szabály minden mást elutasít.
