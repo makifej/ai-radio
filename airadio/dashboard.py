@@ -193,7 +193,9 @@ def qr_svg(text: str) -> str:
     except ImportError:
         return ""
     buf = io.BytesIO()
-    segno.make(text, error="m").save(buf, kind="svg", scale=5, border=2, dark="#0b0d12", light="#ffffff", xmldecl=False)
+    # omitsize: méret helyett viewBox, így a kód a dobozhoz igazodik (hosszú címnél sem vágódik le)
+    segno.make(text, error="m").save(buf, kind="svg", scale=5, border=2, dark="#0b0d12", light="#ffffff",
+                                     xmldecl=False, omitsize=True)
     return buf.getvalue().decode()
 
 

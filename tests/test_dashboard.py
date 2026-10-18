@@ -319,6 +319,7 @@ def test_phone_addresses(server, monkeypatch):
         assert x["public"] == "https://proba-radio.trycloudflare.com" and x["tunnel"] == "fut"
         assert x["lan"] == "http://192.168.1.23:8010"
         assert x["qr_public"].startswith("<svg") and x["qr_lan"].startswith("<svg")
+        assert "viewBox" in x["qr_public"] and "width=" not in x["qr_public"].split(">")[0]  # méretezhető
         (server["data"] / "host.json").write_text('{"lan_ip": "nem cím"}')
         _, x = call(server["url"], "GET", "/api/phone")
         assert x["lan"] is None
