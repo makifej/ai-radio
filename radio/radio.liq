@@ -183,4 +183,17 @@ def check_news() =
   end
 end
 
-thread.run(every=5., check_news)
+# Azonnali hírblokk (`airadio news --now`): az azonnal.wav-ot előbb átnevezzük,
+# hogy csak egyszer induljon; a régieket az airadio takarítja.
+def check_now() =
+  path = "#{news_dir}/azonnal.wav"
+  if file.exists(path) then
+    stamp = time.string("%Y%m%d-%H%M%S")
+    playing = "#{news_dir}/azonnal-#{stamp}.wav"
+    file.move(path, playing)
+    log.important(label="hirek", "Azonnali hírblokk indul: #{playing}")
+    news.push(request.create("annotate:title=\"Hírek\",artist=\"#{station_name}\":#{playing}"))
+  end
+end
+
+thread.run(every=5., fun () -> begin check_news(); check_now() end)

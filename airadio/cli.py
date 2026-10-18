@@ -18,7 +18,12 @@ def cmd_news(cfg: config_mod.Config, args) -> int:
     import anthropic
 
     now = datetime.now()
-    slot = now.replace(minute=0, second=0, microsecond=0) if args.current_hour else news.next_slot(now)
+    if args.now:
+        slot = now.replace(second=0, microsecond=0)
+    elif args.current_hour:
+        slot = now.replace(minute=0, second=0, microsecond=0)
+    else:
+        slot = news.next_slot(now)
     try:
         path = news.produce(
             cfg,
@@ -27,11 +32,14 @@ def cmd_news(cfg: config_mod.Config, args) -> int:
             slot=slot,
             now=now,
             dry_run=args.dry_run,
+            immediate=args.now,
         )
     except Exception as e:
         log.error("A %s órás hírblokk nem készült el: %s", slot.hour, e)
         return 1
-    if path and args.current_hour:
+    if path and args.now:
+        log.info("Kész, a rádió pár másodpercen belül bejátssza.")
+    elif path and args.current_hour:
         log.info("Ha még az óra első öt percében vagyunk, a rádió most lejátssza.")
     return 0
 
@@ -87,7 +95,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     n = sub.add_parser("news", help="a következő óra hírblokkjának elkészítése")
-    n.add_argument("--current-hour", action="store_true", help="a folyó órára készít (teszteléshez)")
+    when = n.add_mutually_exclusive_group()
+    when.add_argument("--now", action="store_true", help="azonnal elkészíti és bejátssza")
+    when.add_argument("--current-hour", action="store_true", help="a folyó órára készít (teszteléshez)")
     n.add_argument("--dry-run", action="store_true", help="csak kiírja a szöveget, hang nem készül")
     n.set_defaults(func=cmd_news)
 

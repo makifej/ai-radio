@@ -33,6 +33,8 @@ docker compose exec -u airadio radio airadio stations render
 docker compose restart
 ```
 
+Hírblokk azonnal, adásba: `docker compose exec -u airadio radio airadio news --now`. Ha az `.env` fájlt módosítod (például az API-kulcsot), a `restart` nem elég, `docker compose up -d` kell, mert a környezeti változók a konténer létrehozásakor kerülnek be.
+
 Napló: `docker compose logs -f`. Leállítás: `docker compose down`. Élő adás helyben a 8015-ös porton megy, a többi az Élő adás résznél leírtak szerint.
 
 ## Telepítés Oracle Cloud Always Free szerverre
@@ -74,7 +76,7 @@ Hírszignál: ha létezik `/var/lib/airadio/jingles/hirek_eleje.wav` vagy `hirek
 ```sh
 airadio status                                   # mi szól most, kész-e a következő hír
 sudo -u airadio airadio news --dry-run           # hírblokk szövege hang nélkül (Claude-hívás!)
-sudo -u airadio airadio news --current-hour      # hírblokk azonnal, a folyó órára
+sudo -u airadio airadio news --now               # hírblokk most azonnal, egyből adásba megy
 journalctl -u airadio-radio -f                   # adásnapló
 journalctl -u airadio-news                       # hírszerkesztés naplója, tokenszámokkal
 ```

@@ -1,8 +1,9 @@
 """Egy hírblokk teljes előállítása: hírek → Claude-szöveg → Piper → ellenőrzött WAV.
 
 A kész fájl neve hirek-ÉÉÉÉHHNN-ÓÓ.wav a news mappában; a radio.liq az adott
-óra elején keresi. Ha bármelyik lépés elakad, nem készül fájl, és abban az
-órában csak zene szól.
+óra elején keresi. Azonnali lejátszásnál (immediate) azonnal.wav, ezt a
+radio.liq pár másodpercen belül bejátssza. Ha bármelyik lépés elakad, nem
+készül fájl, és abban az órában csak zene szól.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ log = logging.getLogger(__name__)
 RECENT_HOURS = 3
 KEEP_FILES_HOURS = 24
 STATE_KEEP_HOURS = 24
+IMMEDIATE_NAME = "azonnal.wav"
 
 
 def next_slot(now: datetime) -> datetime:
@@ -79,7 +81,7 @@ def _jingle(cfg: Config, name: str) -> list[Path]:
 
 def cleanup(cfg: Config, now: datetime) -> None:
     cutoff = (now - timedelta(hours=KEEP_FILES_HOURS)).timestamp()
-    for old in cfg.news_dir.glob("hirek-*.wav"):
+    for old in [*cfg.news_dir.glob("hirek-*.wav"), *cfg.news_dir.glob("azonnal-*.wav")]:
         if old.stat().st_mtime < cutoff:
             old.unlink(missing_ok=True)
 
@@ -91,9 +93,10 @@ def produce(
     slot: datetime,
     now: datetime | None = None,
     dry_run: bool = False,
+    immediate: bool = False,
 ) -> Path | None:
     now = now or datetime.now()
-    if slot.hour not in cfg.news.hours:
+    if not immediate and slot.hour not in cfg.news.hours:
         log.info("%s órakor nincs hírblokk (news.hours)", slot.hour)
         return None
 
@@ -132,7 +135,7 @@ def produce(
         return None
 
     cfg.news_dir.mkdir(parents=True, exist_ok=True)
-    target = bulletin_path(cfg, slot)
+    target = cfg.news_dir / IMMEDIATE_NAME if immediate else bulletin_path(cfg, slot)
     with tempfile.TemporaryDirectory(prefix="airadio-") as tmp:
         tmp = Path(tmp)
         intro = speaker.synthesize(bulletin.intro.strip(), cfg.host_voice, tmp / "intro.wav")

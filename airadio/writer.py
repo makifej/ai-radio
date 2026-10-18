@@ -106,8 +106,9 @@ def build_prompt(
         for i, item in enumerate(items, start=1)
     ]
     weekday = HUNGARIAN_WEEKDAYS[slot.weekday()]
+    clock = f"{slot.hour} óra {slot.minute} perc" if slot.minute else f"{slot.hour} óra"
     parts = [
-        f"Adásidő: {slot:%Y-%m-%d}, {weekday}, {slot.hour} óra.",
+        f"Adásidő: {slot:%Y-%m-%d}, {weekday}, {clock}.",
         f"Műsorvezetői karakter: {host or 'tárgyilagos hírolvasó'}",
         f"Legfeljebb {max_items} hírt válassz.",
         "Nemrég elhangzott hírek címei:",

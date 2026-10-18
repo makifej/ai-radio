@@ -74,3 +74,14 @@ def test_recent_titles_passed_to_writer(cfg, monkeypatch):
     news.produce(cfg, client, ToneSpeaker(), SLOT, now=NOW, dry_run=True)
     prompt = messages.calls[0]["messages"][0]["content"]
     assert "Korábbi hír" in prompt and "Nagyon régi" not in prompt
+
+
+def test_immediate_bulletin(cfg, monkeypatch):
+    monkeypatch.setattr(feeds, "fetch", lambda *a, **k: [news_item(n) for n in (1, 2, 3)])
+    client, messages = fake_client(bulletin(1, 2, 3))
+    late = datetime(2026, 10, 18, 3, 41)  # news.hours-on kívül, de kézzel kérték
+
+    path = news.produce(cfg, client, ToneSpeaker(seconds_per_char=0.12), late, now=late, immediate=True)
+
+    assert path == cfg.news_dir / "azonnal.wav"
+    assert "3 óra 41 perc" in messages.calls[0]["messages"][0]["content"]
