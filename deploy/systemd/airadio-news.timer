@@ -1,0 +1,9 @@
+[Unit]
+Description=AI Rádió – óránkénti hírblokk, minden óra 50. percében
+
+[Timer]
+OnCalendar=*-*-* *:50:00
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

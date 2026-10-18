@@ -1,0 +1,14 @@
+[Unit]
+Description=AI Rádió – a következő óra hírblokkjának elkészítése
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=airadio
+Group=airadio
+EnvironmentFile=/etc/airadio/airadio.env
+Environment=AIRADIO_CONFIG=/etc/airadio/radio.toml
+Environment=TZ=Europe/Budapest
+ExecStart=/opt/airadio/venv/bin/airadio news
+TimeoutStartSec=600

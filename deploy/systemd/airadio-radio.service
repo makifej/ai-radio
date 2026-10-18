@@ -1,0 +1,17 @@
+[Unit]
+Description=AI Rádió – Liquidsoap adásvezérlés
+After=network-online.target airadio-icecast.service
+Wants=network-online.target airadio-icecast.service
+
+[Service]
+User=airadio
+Group=airadio
+EnvironmentFile=/etc/airadio/airadio.env
+Environment=AIRADIO_DATA_DIR=/var/lib/airadio
+Environment=TZ=Europe/Budapest
+ExecStart=/usr/bin/liquidsoap /opt/airadio/radio/radio.liq
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=AI Rádió – Icecast stream szerver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=airadio
+Group=airadio
+ExecStart=/usr/bin/icecast2 -c /etc/airadio/icecast.xml
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

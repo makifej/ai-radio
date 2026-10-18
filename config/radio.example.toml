@@ -1,0 +1,80 @@
+# AI Rádió beállítások. A telepítő /etc/airadio/radio.toml néven másolja ki.
+# Titkok (Claude API-kulcs, jelszavak) NEM ide valók, hanem a
+# /etc/airadio/airadio.env fájlba.
+
+name = "AI Rádió"
+
+[paths]
+data_dir = "/var/lib/airadio"
+voices_dir = "/var/lib/airadio/voices"
+
+[claude]
+model = "claude-sonnet-5-5"
+# low | medium | high: mennyit "gondolkodjon" a modell. A hírszerkesztéshez a
+# medium elég; magasabb szint több tokent, azaz több költséget jelent.
+effort = "medium"
+# Ha a Claude biztonsági szűrője elutasítana egy kérést, a szerver egy másik
+# modellen újrapróbálja (server-side fallback).
+fallback = true
+
+[news]
+# Mely órák elején legyen hírblokk (0-23). Éjjel a költség miatt kimarad.
+hours = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+# Ennél régebbi hír nem kerülhet adásba.
+max_age_hours = 6
+min_items = 3
+max_items = 6
+# A kész hírblokk felső hossza másodpercben; ha hosszabb, a végéről marad ki hír.
+max_seconds = 300
+
+# Csak a Telex címét ellenőriztük; a többit az `airadio feeds check` paranccsal
+# érdemes kipróbálni a szerveren, mielőtt bekapcsolod.
+feeds = [
+    { name = "Telex", url = "https://telex.hu/rss" },
+    # { name = "HVG", url = "https://hvg.hu/rss" },
+    # { name = "444", url = "https://444.hu/feed" },
+    # { name = "Index", url = "https://index.hu/24ora/rss/" },
+]
+
+[voices]
+# Piper hangok: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/VOICES.md
+# Magyar: hu_HU-anna-medium, hu_HU-berta-medium, hu_HU-imre-medium.
+host = "hu_HU-anna-medium"
+news = "hu_HU-imre-medium"
+
+# Napszakok: [start, stop) óra; ha start > stop, átnyúlik éjfélen.
+# A `stations` listában saját stream URL-eket adhatsz meg (ezek kerülnek
+# előre), a `search` a Radio Browser katalógusából egészíti ki a listát.
+# Módosítás után: `airadio stations render`, majd a rádió újraindítása.
+
+[[dayparts]]
+name = "reggel"
+start = 6
+stop = 10
+host = "Reggeli házigazda: energikus, közvetlen, könnyed, rövid mondatokban beszél."
+stations = []
+search = { tag = "pop", countrycode = "HU", limit = 3 }
+
+[[dayparts]]
+name = "nappal"
+start = 10
+stop = 18
+host = "Hírolvasó: tárgyilagos, nyugodt, pontos, kerüli a felesleges töltelékszavakat."
+stations = []
+search = { tag = "hits", countrycode = "HU", limit = 3 }
+
+[[dayparts]]
+name = "este"
+start = 18
+stop = 23
+host = "Esti DJ: nyugodt, barátságos hang, laza átkötésekkel, de nem bőbeszédű."
+stations = []
+search = { tag = "chillout", limit = 3 }
+
+[[dayparts]]
+name = "ejjel"
+start = 23
+stop = 6
+host = "Esti DJ: halk, nyugodt, rövid."
+stations = []
+search = { tag = "ambient", limit = 3 }

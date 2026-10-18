@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "airadio"
+version = "0.1.0"
+description = "Személyes AI-rádió: óránkénti hírblokk Claude-dal és Piper hanggal, állomáskezelés Liquidsoaphoz"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=1.15",
+    "feedparser>=6.0.11",
+    "piper-tts>=1.8",
+    "pydantic>=2.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+airadio = "airadio.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["airadio*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
