@@ -8,8 +8,8 @@ from airadio.config import Station
 from airadio.stations import Found
 
 
-def found(name, url, bitrate=128, hls=False):
-    return Found(name=name, url=url, codec="MP3", bitrate=bitrate, tags="", countrycode="HU", hls=hls)
+def found(name, url, bitrate=128, hls=False, tags="a"):
+    return Found(name=name, url=url, codec="MP3", bitrate=bitrate, tags=tags, countrycode="HU", hls=hls)
 
 
 def test_defaults_cover_requested_styles():
@@ -17,24 +17,47 @@ def test_defaults_cover_requested_styles():
     assert {"rock", "metal", "numetal", "chill", "dance", "joga", "meditacio"} <= ids
     featured = [s.name for s in styles.DEFAULT_STYLES if s.featured]
     assert featured == ["Rock", "Metal", "Nu metal", "Chill", "Dance", "Jóga", "Meditáció"]
+    assert len(styles.DEFAULT_STYLES) > 150
     assert len(ids) == len(styles.DEFAULT_STYLES)  # egyedi azonosítók
     assert all(re.fullmatch(r"[a-z0-9]+", s.id) for s in styles.DEFAULT_STYLES)  # az API útvonala ezt várja
+    assert {s.group for s in styles.DEFAULT_STYLES} == set(styles.GROUPS)
 
 
-def test_gather_fixed_first_dedupes_and_filters():
+def test_short_name():
+    spam = "# TOP 100 CLUB CHARTS - DANCE & DJ MIX RADIO - 24 HOURS NON-STOP MUSIC @ TikTok Hits, Ibiza House"
+    assert styles.short_name(spam) == "TOP 100 CLUB CHARTS"
+    assert styles.short_name("0R - MUSIC FOR SLEEP || Sleep, Relax, Calm, Meditation, Ambient") == "0R - MUSIC FOR SLEEP"
+    assert styles.short_name("SomaFM Groove Salad") == "SomaFM Groove Salad"
+    assert len(styles.short_name("x" * 100)) == 40
+
+
+def test_relevance_prefers_exact_early_tags_and_drops_tag_spam():
+    wanted = ("chillout", "chill")
+    spam = ",".join(["dance", "edm", "house", "techno", "pop", "hits", "top 40", "latin", "reggaeton", "urban",
+                     "hip hop", "r&b", "lounge", "chill", "party", "club"])
+    assert styles.relevance(spam, wanted) is None
+    assert styles.relevance("chillout,ambient", wanted) < styles.relevance("ambient,lounge,chill", wanted)
+    assert styles.relevance("chillstep", wanted) is not None  # részszó is jó, csak hátrébb
+    assert styles.relevance("rock,pop", wanted) is None
+    assert styles.relevance("bármi", ("",)) == 0.0  # csak ország szerinti stílus
+
+
+def test_gather_fixed_first_dedupes_and_ranks():
     style = styles.Style("x", "X", ("a", "b"), (Station("Fix", "http://fix/stream"),))
     calls = []
+    many = ",".join(f"t{i}" for i in range(15)) + ",a"
 
     def searcher(query):
         calls.append(query.tag)
         return {
             "a": [found("Egy", "http://1"), found("fix", "http://masik"), found("HLS", "http://h", hls=True),
-                  found("Gyenge", "http://g", bitrate=32), found("Ismeretlen", "http://u", bitrate=0)],
-            "b": [found("Egy másik néven", "http://1"), found("Kettő", "http://2")],
+                  found("Gyenge", "http://g", bitrate=32), found("Ismeretlen", "http://u", bitrate=0, tags="x,a"),
+                  found("Címkehalmozó", "http://s", tags=many)],
+            "b": [found("Egy másik néven", "http://1", tags="b"), found("Kettő", "http://2", tags="b")],
         }[query.tag]
 
     result = styles.gather(style, searcher)
-    assert [r["url"] for r in result] == ["http://fix/stream", "http://1", "http://u", "http://2"]
+    assert [r["url"] for r in result] == ["http://fix/stream", "http://1", "http://2", "http://u"]
     assert result[0]["source"] == "fix" and result[1]["source"] == "keresés"
     assert calls == ["a", "b"]
 
@@ -42,13 +65,11 @@ def test_gather_fixed_first_dedupes_and_filters():
 def test_gather_stops_at_max(monkeypatch):
     monkeypatch.setattr(styles, "MAX_STATIONS", 2)
     style = styles.Style("x", "X", ("a", "b"))
-    calls = []
 
     def searcher(query):
-        calls.append(query.tag)
-        return [found(f"{query.tag}{i}", f"http://{query.tag}{i}") for i in range(5)]
+        return [found(f"{query.tag}{i}", f"http://{query.tag}{i}", tags=query.tag) for i in range(5)]
 
-    assert len(styles.gather(style, searcher)) == 2 and calls == ["a"]
+    assert len(styles.gather(style, searcher)) == 2
 
 
 def test_catalog_caches_and_falls_back(tmp_path):

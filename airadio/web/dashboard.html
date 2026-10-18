@@ -87,8 +87,10 @@ nav.side .sep { height: 1px; background: var(--line); margin: 10px 6px; }
 .stage-ui > * { pointer-events: auto; }
 .stage-top { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
 .stage .src { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
-.stage .title { font-size: 30px; font-weight: 760; line-height: 1.15; margin: 6px 0 4px; overflow-wrap: anywhere; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
-.stage .meta { color: var(--muted); }
+.stage .title { font-size: 30px; font-weight: 760; line-height: 1.15; margin: 6px 0 4px; overflow-wrap: anywhere; text-shadow: 0 2px 18px rgba(0,0,0,.6);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.stage .meta { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ovHeroText { flex: 1; min-width: 0; }
 .stage .actions { display: grid; gap: 8px; min-width: 220px; }
 .stage-tools { margin-top: auto; display: flex; justify-content: flex-end; gap: 8px; }
 .seg { display: inline-flex; background: rgba(11,13,18,.6); border: 1px solid var(--line2); border-radius: 9px; padding: 3px; backdrop-filter: blur(6px); }
@@ -318,6 +320,16 @@ details.b .body p { margin: 10px 0 0; }
 .chip { padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line2); background: var(--panel2); color: var(--muted); font-weight: 650; font-size: 12.5px; cursor: pointer; }
 .chip:hover { color: var(--text); border-color: var(--dim); }
 .chip.on { color: #04131a; background: var(--style); border-color: var(--style); }
+.stylebar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-top: 16px; }
+.gtabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.gtab { padding: 6px 10px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--muted); font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.gtab:hover { color: var(--text); background: var(--panel2); }
+.gtab.on { color: var(--text); background: var(--panel2); border-color: var(--line2); }
+.gtab .n { color: var(--dim); font-weight: 600; font-size: 11px; margin-left: 4px; }
+.gtab.act::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--style); vertical-align: middle; }
+.sfind { width: 240px; padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line2); background: var(--bg); color: var(--text); }
+.sfind:focus { outline: none; border-color: var(--style); }
+.sstate { min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; letter-spacing: 0; font-weight: 600; }
 .pad { position: relative; min-width: 0; text-align: left; min-height: 74px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line2); cursor: pointer;
   background: linear-gradient(180deg, #1c212c, #151922); color: var(--text); display: flex; flex-direction: column; gap: 6px; transition: transform .08s, box-shadow .15s; }
 .pad:hover { border-color: var(--dim); }
@@ -340,6 +352,7 @@ details.b .body p { margin: 10px 0 0; }
   .g2, .g3, .g4 { grid-template-columns: 1fr; } .span2 { grid-column: auto; }
   header.top { flex-wrap: wrap; gap: 10px; height: auto; } .np { order: 9; flex-basis: 100%; }
   .bigplay { width: 60px; height: 60px; } .monitor input[type=range] { width: 80px; }
+  .sfind { width: 100%; } .sstate { max-width: 55%; }
   .stat.hide-sm, .monitor .mini { display: none; }
   .stage { height: 580px; } .stage-top { flex-direction: column; } .stage:not(.playing) #ovHeroText { max-width: none; }
   .stage-play { top: 62%; } .stage-play .disc { width: 132px; height: 132px; } .stage-play .disc .ic { width: 60px; height: 60px; } .stage .actions { min-width: 0; width: 100%; } .stage .title { font-size: 24px; }
@@ -834,8 +847,10 @@ PAGES.attekintes = async (el, tk) => {
         <div class="lamps" id="stLamps"></div>
       </aside>
     </div>
-    <div class="card"><h2><span>Stílus</span><span class="small dim" id="styleState"></span></h2>
+    <div class="card"><h2><span>Stílus</span><span class="small dim sstate" id="styleState"></span></h2>
       <div class="stylegrid" id="styleFeatured"><div class="empty">Betöltés</div></div>
+      <div class="stylebar"><div class="gtabs" id="styleTabs"></div>
+        <input class="sfind" id="styleFind" type="search" placeholder="Stílus keresése" aria-label="Stílus keresése" autocomplete="off"></div>
       <div class="chips" id="styleMore"></div></div>
     ${deskHTML()}
     <div class="grid g3">
@@ -941,9 +956,17 @@ function renderOverviewLive() {
     </div>`;
 }
 async function loadStyles() {
-  if (!S.styles) { try { S.styles = (await api("GET", "/api/styles")).styles; } catch { S.styles = null; return; } }
+  if (!S.styles) {
+    try { const x = await api("GET", "/api/styles"); S.styles = x.styles; S.styleGroups = x.groups; } catch { S.styles = null; return; }
+  }
+  const find = $("#styleFind");
+  if (find) {
+    find.value = S.styleFilter || "";
+    find.oninput = () => { S.styleFilter = find.value; S.styleKey = ""; renderStyles(); };
+  }
   S.styleKey = ""; renderStyles();
 }
+const fold = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 function styleStateText(a) {
   if (!a.style) return "";
   return (STYLE_STATE[a.status] || a.status) + (a.status === "szól" && a.station ? " · " + a.station.name : "");
@@ -951,7 +974,10 @@ function styleStateText(a) {
 function renderStyles() {
   if (!$("#styleFeatured") || !S.styles || !S.status) return;
   const a = S.status.style || {}, r = S.status.radio || {};
-  const key = JSON.stringify([a.style, a.status, a.station && a.station.url, a.error, r.override]);
+  const activeGroup = (S.styles.find((x) => x.id === a.style) || {}).group;
+  if (!S.styleGroup) S.styleGroup = store.get("airadio.stylegroup") || activeGroup || S.styleGroups[0];
+  const filter = fold((S.styleFilter || "").trim());
+  const key = JSON.stringify([a.style, a.status, a.station && a.station.url, a.error, r.override, S.styleGroup, filter]);
   if (key === S.styleKey) return;  // ne rajzoljuk újra fölöslegesen (az animáció ne ugráljon)
   S.styleKey = key;
   const auto = !a.style && !r.override;
@@ -963,8 +989,15 @@ function renderStyles() {
       return `<button class="spad ${on ? "on" : ""}" data-style="${esc(x.id)}" style="--c:${STYLE_COLORS[x.id] || "var(--accent)"}">
         <span class="sn">${esc(x.name)}</span><span class="ss">${on ? esc(styleStateText(a)) : "választás"}</span>${eq}</button>`;
     }).join("");
-  $("#styleMore").innerHTML = S.styles.filter((x) => !x.featured)
-    .map((x) => `<button class="chip ${a.style === x.id ? "on" : ""}" data-style="${esc(x.id)}">${esc(x.name)}</button>`).join("");
+  $("#styleTabs").innerHTML = S.styleGroups.map((g) => {
+    const n = S.styles.filter((x) => x.group === g).length;
+    return `<button class="gtab ${!filter && g === S.styleGroup ? "on" : ""} ${g === activeGroup ? "act" : ""}" data-sgroup="${esc(g)}">${esc(g)}<span class="n">${n}</span></button>`;
+  }).join("");
+  const shown = filter ? S.styles.filter((x) => fold(x.name).includes(filter))
+                       : S.styles.filter((x) => x.group === S.styleGroup);
+  $("#styleMore").innerHTML = shown.length
+    ? shown.map((x) => `<button class="chip ${a.style === x.id ? "on" : ""}" data-style="${esc(x.id)}">${esc(x.name)}</button>`).join("")
+    : '<span class="muted small">Nincs ilyen stílus.</span>';
   $("#styleState").textContent = a.style ? `${a.name}: ${styleStateText(a)}${a.error ? " · " + a.error : ""}` : "napszak szerinti automata";
 }
 function styleDeckHTML(sty) {
@@ -986,6 +1019,12 @@ function styleDeckHTML(sty) {
   }).join("");
 }
 function kindLabel(k) { return { hourly: "óránkénti", now: "azonnali", "dry-run": "próba" }[k] || k; }
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-sgroup]"); if (!t) return;
+  S.styleGroup = t.dataset.sgroup; store.set("airadio.stylegroup", S.styleGroup);
+  S.styleFilter = ""; const f = $("#styleFind"); if (f) f.value = "";
+  S.styleKey = ""; renderStyles();
+});
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-act],[data-play],[data-style],[data-style-station]"); if (!b) return;
   const applyStyle = (res) => { if (S.status) { S.status.style = res; renderHeader(); renderOverviewLive(); } };

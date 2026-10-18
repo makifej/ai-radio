@@ -246,7 +246,7 @@ def test_style_api_flow(server, tmp_path):
 
     def searcher(query):
         if query.tag in ("metal", "heavy metal"):
-            return [Found(name="Keresett", url="http://keresett/metal", codec="MP3", bitrate=128, tags="", countrycode="DE")]
+            return [Found(name="Keresett", url="http://keresett/metal", codec="MP3", bitrate=128, tags="metal", countrycode="DE")]
         return []
 
     app._catalog = styles.Catalog(tmp_path / "styles.json", styles.DEFAULT_STYLES, searcher)

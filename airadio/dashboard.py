@@ -367,7 +367,8 @@ class Dashboard:
 
     def styles(self) -> dict:
         return {
-            "styles": [{"id": s.id, "name": s.name, "featured": s.featured} for s in self.catalog.styles],
+            "styles": [{"id": s.id, "name": s.name, "featured": s.featured, "group": s.group} for s in self.catalog.styles],
+            "groups": list(styles_mod.GROUPS),
             "active": self.relay.state(),
         }
 
