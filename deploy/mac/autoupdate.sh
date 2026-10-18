@@ -31,7 +31,9 @@ main() {
   log "új változat: ${sha:0:7}"
   curl -fsSL --max-time 300 -o "$tmp/src.tgz" "https://codeload.github.com/$repo/tar.gz/$sha" \
     || { log "a letöltés nem sikerült"; return 0; }
-  tar tzf "$tmp/src.tgz" | grep -q '^[^/]*/docker-compose.yml$' || { log "hibás csomag"; return 0; }
+  # külön fájlba, mert a grep -q korai kilépése pipefail mellett hibának látszana
+  tar tzf "$tmp/src.tgz" > "$tmp/list" 2>/dev/null && grep -q '^[^/]*/docker-compose.yml$' "$tmp/list" \
+    || { log "hibás csomag"; return 0; }
   tar xzf "$tmp/src.tgz" -C "$dir" --strip-components=1
 
   if (cd "$dir" && docker compose up -d --build); then

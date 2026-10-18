@@ -71,7 +71,11 @@ PLIST
   launchctl bootstrap "gui/$(id -u)" "$plist"
 
   echo
-  echo "Kész. A rádió mappája: $NEW"
+  if [[ -f $NEW/data/.verzio ]]; then
+    echo "Kész. A rádió mappája: $NEW"
+  else
+    echo "Az indítás most nem sikerült (a hiba fent látszik); a frissítő kétpercenként újrapróbálja."
+  fi
   echo "Hallgatás: http://localhost:8010   Irányítópult: http://localhost:8020"
   echo "Az új változatok kétpercenként maguktól érkeznek; napló: $NEW/data/log/frissites.log"
 }
