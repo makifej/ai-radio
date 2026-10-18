@@ -199,3 +199,93 @@ def test_telnet_reads_until_end():
     threading.Thread(target=serve, daemon=True).start()
     assert telnet("keveres.szintek", srv.getsockname()[1]) == '{ "music": 0.5 }'
     srv.close()
+
+
+class FakeRelay:
+    password = "titok"
+
+    def __init__(self):
+        self.calls = []
+        self._st = {"style": "", "name": "", "station": None, "status": "ki", "title": "", "error": "", "failed": []}
+
+    def play(self, style, name, stations, start_url=""):
+        self.calls.append(("play", style, [s["url"] for s in stations], start_url))
+        self._st.update(style=style, name=name, status="szól")
+
+    def stop(self):
+        self.calls.append(("stop",))
+        self._st.update(style="", name="", status="ki")
+
+    def next(self):
+        self.calls.append(("next",))
+
+    def state(self):
+        return dict(self._st)
+
+    def set_status(self, **fields):
+        self._st.update(fields)
+
+
+def wait_until(cond, timeout=5.0):
+    import time
+
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if cond():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def test_style_api_flow(server, tmp_path):
+    from airadio import styles
+    from airadio.stations import Found
+
+    app = server["app"]
+    app.relay = relay = FakeRelay()
+
+    def searcher(query):
+        if query.tag in ("metal", "heavy metal"):
+            return [Found(name="Keresett", url="http://keresett/metal", codec="MP3", bitrate=128, tags="", countrycode="DE")]
+        return []
+
+    app._catalog = styles.Catalog(tmp_path / "styles.json", styles.DEFAULT_STYLES, searcher)
+
+    _, lst = call(server["url"], "GET", "/api/styles")
+    assert len(lst["styles"]) == len(styles.DEFAULT_STYLES) and sum(s["featured"] for s in lst["styles"]) == 7
+    status, _ = call(server["url"], "POST", "/api/style", {"style": "nincsilyen"})
+    assert status == 404
+
+    call(server["url"], "POST", "/api/control", {"override": "http://kezi.invalid"})
+    status, st = call(server["url"], "POST", "/api/style", {"style": "metal", "station": "http://keresett/metal"})
+    assert status == 200 and st["style"] == "metal"
+    assert wait_until(lambda: any(c[0] == "play" for c in relay.calls))
+    assert relay.calls[-1] == ("play", "metal", ["https://ice.somafm.com/metal", "http://keresett/metal"], "http://keresett/metal")
+    assert json.loads((server["data"] / "control.json").read_text())["override"] == ""  # a kézi választás megszűnt
+    assert json.loads((server["data"] / "style.json").read_text()) == {"style": "metal", "station": "http://keresett/metal"}
+
+    _, deck = call(server["url"], "GET", "/api/styles/metal")
+    assert [s["name"] for s in deck["stations"]] == ["SomaFM Metal Detector", "Keresett"]
+    call(server["url"], "POST", "/api/style/next")
+    assert relay.calls[-1] == ("next",)
+    _, status_ = call(server["url"], "GET", "/api/status")
+    assert status_["style"]["style"] == "metal"
+
+    # az automata (vagy kézi állomás) választása leállítja a stílust
+    call(server["url"], "POST", "/api/control", {"override": ""})
+    assert relay.calls[-1] == ("stop",)
+    assert json.loads((server["data"] / "style.json").read_text())["style"] == ""
+
+
+def test_style_without_stations_stops_previous(server, tmp_path):
+    from airadio import styles
+
+    app = server["app"]
+    app.relay = relay = FakeRelay()
+    relay._st.update(style="metal", name="Metal", status="szól")
+    app._catalog = styles.Catalog(tmp_path / "styles.json", styles.DEFAULT_STYLES, lambda q: [])
+    call(server["url"], "POST", "/api/style", {"style": "rock"})
+    assert wait_until(lambda: relay.state()["status"] == "hiba")
+    assert ("stop",) in relay.calls and relay.state()["style"] == "rock"
+    status, _ = call(server["url"], "POST", "/api/style/next")
+    assert status == 200  # stílus van kiválasztva, csak nem szól

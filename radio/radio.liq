@@ -1,6 +1,7 @@
 # AI Rádió adásvezérlés (Liquidsoap 2.2)
 #
-# Prioritás: élő bemenet > hírblokk > zene. A zene az aktuális napszakhoz
+# Prioritás: élő bemenet > hírblokk > zene. A zene a kiválasztott stílus
+# (ha van), egyébként az aktuális napszakhoz
 # rendelt online rádiók közül az első, amelyik szól; ha az nem csatlakozik
 # vagy elnémul, a lista következő eleme jön, ha egyik sem, a helyi tartalék
 # mappa, végső esetben csend (mksafe).
@@ -122,8 +123,20 @@ manual =
     source.fail()
   end
 
+# Stílus: az irányítópult a kiválasztott stílus egyik online rádióját ffmpeg-gel
+# ide továbbítja (airadio/relay.py). Amíg nincs stílus kiválasztva, ez a bemenet
+# üres, és a napszak szerinti zene szól. Állomásváltáskor csak a továbbító cserél
+# forrást, a Liquidsoapot nem kell újraindítani.
+style_in = input.harbor(id="stilus", port=live_port, user="source", password=live_password, buffer=2., max=5., "stilus")
+style = blank.strip(id="stilus_csend", max_blank=15., threshold=-45., track_sensitive=false, style_in)
+
 backup = playlist(id="tartalek", mode="randomize", reload_mode="watch", backup_dir)
-music = fallback(id="zene", track_sensitive=false, [manual, relay, backup])
+
+def keresztattunes(a, b) =
+  add(normalize=false, [fade.in(duration=1.5, b), fade.out(duration=1.5, a)])
+end
+music = fallback(id="zene", track_sensitive=false, transitions=[keresztattunes, keresztattunes, keresztattunes, keresztattunes],
+                 [style, manual, relay, backup])
 
 news = request.queue(id="hirek")
 
@@ -244,6 +257,7 @@ def station_name_for(url) =
 end
 
 active_station = ref("")
+last_on_air = ref("")
 
 def report() =
   hour = current_hour()
@@ -254,13 +268,21 @@ def report() =
   on_air =
     if source.is_ready(live) then "elo"
     elsif source.is_ready(news) then "hirek"
+    elsif source.is_ready(style) then "stilus"
     elsif manual_on then "kezi"
     elsif playing.name != "" then "allomas"
     elsif source.is_ready(backup) then "tartalek"
     else "csend" end
 
+  # A stílus dalcímét a harbor adja; ha onnan visszaváltunk, ne maradjon kint a régi cím.
+  if on_air != last_on_air() then
+    if last_on_air() == "stilus" then current_meta := [] end
+    last_on_air := on_air
+  end
+
   label =
-    if manual_on then station_name_for(override_url())
+    if source.is_ready(style) then "stílus"
+    elsif manual_on then station_name_for(override_url())
     elsif playing.name != "" then playing.name
     else "tartalék" end
   if label != active_station() then
@@ -283,6 +305,7 @@ def report() =
       all_stations=list.map(fun (s) -> {name=s.name, url=s.url, ready=station_source(s.url).is_ready()}, all_stations),
       news=source.is_ready(news),
       live=source.is_ready(live),
+      style=source.is_ready(style),
       started=started,
       updated=time.string("%Y-%m-%d %H:%M:%S")
     }),

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -18,7 +19,8 @@ from .config import Config, Station, StationSearch
 log = logging.getLogger(__name__)
 
 USER_AGENT = "airadio/0.1"
-SERVERS = (
+# Tükörszerverek; az AIRADIO_RADIO_BROWSER (vesszővel elválasztva) felülírja.
+SERVERS = tuple(filter(None, os.environ.get("AIRADIO_RADIO_BROWSER", "").split(","))) or (
     "https://de1.api.radio-browser.info",
     "https://nl1.api.radio-browser.info",
     "https://at1.api.radio-browser.info",
@@ -37,6 +39,7 @@ class Found:
     homepage: str = ""
     favicon: str = ""
     votes: int = 0
+    hls: bool = False
 
 
 def search(query: StationSearch, limit: int | None = None, timeout: float = 15, name: str = "") -> list[Found]:
@@ -78,6 +81,7 @@ def search(query: StationSearch, limit: int | None = None, timeout: float = 15, 
             homepage=r.get("homepage", "") or "",
             favicon=r.get("favicon", "") or "",
             votes=int(r.get("votes") or 0),
+            hls=bool(r.get("hls")),
         )
         for r in rows
         if r.get("url_resolved") or r.get("url")

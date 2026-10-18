@@ -10,7 +10,7 @@
   --bg: #0b0d12; --panel: #12151c; --panel2: #171b24; --line: #232a36; --line2: #2e3646;
   --text: #e7eaf0; --muted: #8e97aa; --dim: #5f687a;
   --accent: #4f8cff; --accent-ink: #fff;
-  --onair: #ff4545; --ok: #2fd27a; --warn: #ffb020; --manual: #b48cff;
+  --onair: #ff4545; --ok: #2fd27a; --warn: #ffb020; --manual: #b48cff; --style: #22d3ee;
   --radius: 12px; --hdr: 90px; --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 }
 * { box-sizing: border-box; }
@@ -49,6 +49,7 @@ nav.side .sep { height: 1px; background: var(--line); margin: 10px 6px; }
 .onair.auto { color: var(--ok); border-color: rgba(47,210,122,.45); } .onair.auto .lamp { background: var(--ok); }
 .onair.manual { color: var(--manual); border-color: rgba(180,140,255,.5); } .onair.manual .lamp { background: var(--manual); }
 .onair.down { color: var(--onair); border-color: rgba(255,69,69,.5); } .onair.down .lamp { background: var(--onair); }
+.onair.style { color: var(--style); border-color: rgba(34,211,238,.5); } .onair.style .lamp { background: var(--style); }
 @keyframes pulse { 50% { opacity: .35; } }
 .np { flex: 1; min-width: 0; }
 .np .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -295,6 +296,28 @@ details.b .body p { margin: 10px 0 0; }
 
 /* padok */
 .pads { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+
+/* stílusválasztó */
+.stylegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.spad { --c: #4f8cff; position: relative; overflow: hidden; min-width: 0; min-height: 88px; padding: 12px 14px 12px 16px; text-align: left;
+  border-radius: 14px; border: 1px solid var(--line2); color: var(--text); cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--c) 24%, #161a23), #12151c 72%); transition: transform .08s, border-color .15s, box-shadow .15s; }
+.spad::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c); }
+.spad:hover { border-color: color-mix(in srgb, var(--c) 65%, var(--line2)); }
+.spad:active { transform: scale(.98); }
+.spad .sn { font-weight: 800; font-size: 17px; letter-spacing: .01em; overflow-wrap: anywhere; }
+.spad .ss { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spad.on { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 30px color-mix(in srgb, var(--c) 35%, transparent); }
+.spad.on .ss { color: var(--text); }
+.eqb { position: absolute; right: 12px; top: 13px; display: none; gap: 2px; align-items: flex-end; height: 14px; }
+.spad.on .eqb { display: flex; }
+.eqb b { width: 3px; height: 4px; border-radius: 1px; background: var(--c); animation: eqb .9s ease-in-out infinite; }
+.eqb b:nth-child(2) { animation-delay: .25s; } .eqb b:nth-child(3) { animation-delay: .5s; }
+@keyframes eqb { 50% { height: 14px; } }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip { padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line2); background: var(--panel2); color: var(--muted); font-weight: 650; font-size: 12.5px; cursor: pointer; }
+.chip:hover { color: var(--text); border-color: var(--dim); }
+.chip.on { color: #04131a; background: var(--style); border-color: var(--style); }
 .pad { position: relative; min-width: 0; text-align: left; min-height: 74px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line2); cursor: pointer;
   background: linear-gradient(180deg, #1c212c, #151922); color: var(--text); display: flex; flex-direction: column; gap: 6px; transition: transform .08s, box-shadow .15s; }
 .pad:hover { border-color: var(--dim); }
@@ -442,8 +465,10 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 /* ---------------- állapot és fejléc ---------------- */
 const SRC = {
   elo: ["ÉLŐ ADÁS", "live"], hirek: ["HÍREK", "news"], kezi: ["KÉZI", "manual"],
-  allomas: ["AUTO", "auto"], tartalek: ["TARTALÉK", "auto"], csend: ["CSEND", "down"],
+  allomas: ["AUTO", "auto"], tartalek: ["TARTALÉK", "auto"], csend: ["CSEND", "down"], stilus: ["STÍLUS", "style"],
 };
+const STYLE_COLORS = { rock: "#ef4444", metal: "#94a3b8", numetal: "#f97316", chill: "#22d3ee", dance: "#e879f9", joga: "#84cc16", meditacio: "#a78bfa" };
+const STYLE_STATE = { "keresés": "állomások keresése…", "kapcsolódás": "kapcsolódás…", "várakozás": "a rádiómotorra vár…", "hiba": "nem szól", "szól": "szól" };
 function onAirInfo(st) {
   const r = st && st.radio;
   if (!r || r.stale) return { label: "NEM FUT", cls: "down", src: "csend" };
@@ -453,6 +478,7 @@ function onAirInfo(st) {
 function nowTitle(st) {
   const r = st.radio || {};
   if (r.on_air === "hirek") return "Hírek";
+  if (r.on_air === "stilus") return (st.style && st.style.title) || r.title || "";
   const parts = [r.artist, r.title].filter(Boolean);
   if (parts.length) return parts.join(" – ");
   return st.icecast && st.icecast.title || "";
@@ -465,10 +491,13 @@ function renderHeader() {
   const r = st.radio || {};
   const t = nowTitle(st);
   $("#hTitle").textContent = t || (oa.src === "tartalek" ? "Tartalék zene" : r.station || "–");
-  $("#hSub").textContent = r.station ? `${t ? r.station + " · " : ""}${r.daypart || ""}` : (st.icecast.up ? "" : "Az Icecast nem válaszol");
+  const sty = st.style || {};
+  if (r.on_air === "stilus" && sty.station) $("#hTitle").textContent = t || sty.station.name;
+  $("#hSub").textContent = r.on_air === "stilus" && sty.station ? `${t ? sty.station.name + " · " : ""}${sty.name} stílus`
+    : r.station ? `${t ? r.station + " · " : ""}${r.daypart || ""}` : (st.icecast.up ? "" : "Az Icecast nem válaszol");
   const n = st.news.next;
   $("#hNext").innerHTML = n ? `${fmtTime(n.slot)}${n.ready ? " " + ic("check", "xs") : ""}` : "nincs";
-  const pal = { live: "live", news: "news", manual: "manual", auto: "auto", down: "idle" }[oa.cls] || "auto";
+  const pal = { live: "live", news: "news", manual: "manual", auto: "auto", style: "auto", down: "idle" }[oa.cls] || "auto";
   [miniViz, stageViz].forEach((v) => v && v.setPalette(pal));
   $("#hListeners").textContent = st.icecast.on_air ? st.icecast.listeners : "–";
 }
@@ -805,6 +834,9 @@ PAGES.attekintes = async (el, tk) => {
         <div class="lamps" id="stLamps"></div>
       </aside>
     </div>
+    <div class="card"><h2><span>Stílus</span><span class="small dim" id="styleState"></span></h2>
+      <div class="stylegrid" id="styleFeatured"><div class="empty">Betöltés</div></div>
+      <div class="chips" id="styleMore"></div></div>
     ${deskHTML()}
     <div class="grid g3">
       <div class="card"><h2><span>Állomás-deck</span><span class="small dim" id="deckDp"></span></h2><div class="pads" id="deck"></div></div>
@@ -827,6 +859,7 @@ PAGES.attekintes = async (el, tk) => {
   $("#cartStop").onclick = () => api("POST", "/api/cart", { stop: true }).catch((e) => toast(e.message, "err"));
   renderOverviewLive();
   tickClock();
+  loadStyles();
 
   const [mix, jingles, backup] = await Promise.all([
     api("GET", "/api/mixer").catch(() => JSON.parse(JSON.stringify(MIX_DEFAULT))),
@@ -864,36 +897,41 @@ document.addEventListener("fullscreenchange", () => { const b = $("#vizFull"); i
 function renderOverviewLive() {
   const st = S.status; if (!st || !$("#ovHeroText")) return;
   const r = st.radio || {}, oa = onAirInfo(st), ice = st.icecast || {};
-  const srcColor = { live: "var(--onair)", news: "var(--warn)", manual: "var(--manual)", auto: "var(--ok)", down: "var(--onair)" }[oa.cls];
+  const srcColor = { live: "var(--onair)", news: "var(--warn)", manual: "var(--manual)", auto: "var(--ok)", style: "var(--style)", down: "var(--onair)" }[oa.cls];
   const manual = r.override && !r.stale;
+  const sty = st.style || {}, styleOn = r.on_air === "stilus" && sty.style && !r.stale;
   $("#ovHeroText").innerHTML = `
-      <div class="src" style="color:${srcColor}"><span class="dot" style="background:${srcColor}"></span>${esc(oa.label)}${r.on_air === "tartalek" ? " · helyi zene" : ""}</div>
-      <div class="title">${esc(nowTitle(st) || (r.on_air === "tartalek" ? "Tartalék zene" : r.stale || !r.on_air ? "A rádió nem fut" : r.station || "–"))}</div>
-      <div class="meta">${r.station ? esc(r.station) : ""}${r.daypart ? " · " + esc(r.daypart) + " napszak" : ""}${manual ? ' · <span style="color:var(--manual)">kézi választás</span>' : ""}</div>`;
+      <div class="src" style="color:${srcColor}"><span class="dot" style="background:${srcColor}"></span>${esc(oa.label)}${styleOn ? " · " + esc(sty.name) : ""}${r.on_air === "tartalek" ? " · helyi zene" : ""}</div>
+      <div class="title">${esc(nowTitle(st) || (styleOn && sty.station ? sty.station.name : r.on_air === "tartalek" ? "Tartalék zene" : r.stale || !r.on_air ? "A rádió nem fut" : r.station || "–"))}</div>
+      <div class="meta">${styleOn && sty.station ? esc(sty.station.name) + " · " + esc(sty.name) + " stílus"
+        : (r.station ? esc(r.station) : "") + (r.daypart ? " · " + esc(r.daypart) + " napszak" : "") + (manual ? ' · <span style="color:var(--manual)">kézi választás</span>' : "")}</div>`;
   $("#ovHeroActions").innerHTML = `
       <button class="btn amber" data-act="newsnow">${ic("news", "sm")}Hírek most</button>
       ${r.on_air === "hirek" ? `<button class="btn danger glass" data-act="skipnews">${ic("stop", "sm")}Hír leállítása</button>` : ""}
       <button class="btn glass" data-act="nextst">${ic("skip", "sm")}Következő állomás</button>
-      ${manual ? `<button class="btn glass" data-act="auto">${ic("auto", "sm")}Vissza automatára</button>` : ""}`;
+      ${manual || sty.style ? `<button class="btn glass" data-act="auto">${ic("auto", "sm")}Vissza automatára</button>` : ""}`;
   const lamp = (label, state, value = "") => `<div class="lampi"><span class="led ${state}"></span>${label}<span class="v">${value}</span></div>`;
   $("#stLamps").innerHTML = [
     lamp("Adás kint", ice.on_air ? "ok" : "bad", ice.on_air ? `${ice.listeners} hallgató` : "nincs"),
     lamp("Lejátszómotor", r.on_air && !r.stale ? "ok" : "bad", r.started ? "fut " + fmtTime(r.started.replace(" ", "T")) + " óta" : ""),
     lamp("Élő bemenet", r.live ? "bad" : "", r.live ? "ÉLŐ" : "nincs"),
+    lamp("Stílus", sty.style ? (sty.status === "szól" ? "ok" : sty.status === "hiba" ? "bad" : "warn") : "", sty.style ? esc(sty.name) : "automata"),
     lamp("Következő hír", st.news.next ? (st.news.next.ready ? "ok" : "warn") : "", st.news.next ? (st.news.next.ready ? "kész" : "készül") : "ki"),
     lamp("Claude", st.api_key ? "ok" : "warn", st.api_key ? esc(st.model.replace("claude-", "")) : "nincs kulcs"),
   ].join("");
   $("#ovTimeline").innerHTML = timelineHTML(st.dayparts, st.news.hours);
-  $("#deckDp").textContent = r.daypart ? r.daypart + " napszak" : "";
+  renderStyles();
+  $("#deckDp").textContent = sty.style ? sty.name + " stílus" : r.daypart ? r.daypart + " napszak" : "";
   const all = r.all_stations || [], current = new Set((r.stations || []).map((s) => s.url));
-  const autoOn = !r.override;
-  $("#deck").innerHTML = `<button class="pad ${autoOn ? "pad-live" : ""}" data-act="auto"><span class="pn">Automata</span><span class="ps">${ic("auto", "xs")}napszak szerint</span></button>` +
+  const autoOn = !r.override && !sty.style;
+  const autoPad = `<button class="pad ${autoOn ? "pad-live" : ""}" data-act="auto"><span class="pn">Automata</span><span class="ps">${ic("auto", "xs")}napszak szerint</span></button>`;
+  $("#deck").innerHTML = autoPad + (sty.style ? styleDeckHTML(sty) :
     all.map((s) => {
       const isManual = r.override === s.url, playing = autoOn && r.url === s.url && r.on_air === "allomas";
       return `<button class="pad ${isManual ? "manual" : playing ? "pad-live" : ""}" data-play="${esc(s.url)}" ${s.ready ? "" : "disabled"} title="${esc(s.url)}">
         <span class="pn">${esc(s.name)}</span>
         <span class="ps"><span class="led ${s.ready ? "ok" : "bad"}" style="width:7px;height:7px"></span>${isManual ? "kézi, adásban" : playing ? "adásban" : current.has(s.url) ? "ebben a napszakban" : s.ready ? "készen" : "nem szól"}</span></button>`;
-    }).join("");
+    }).join(""));
   const last = st.news.last;
   $("#ovNews").innerHTML = `
     <div class="stack">
@@ -902,16 +940,76 @@ function renderOverviewLive() {
       <div class="row"><button class="btn" data-act="dry">${ic("eye", "sm")}Próba (csak szöveg)</button><a class="btn ghost" href="#hirek">Hírtörténet ${ic("arrow", "sm")}</a></div>
     </div>`;
 }
+async function loadStyles() {
+  if (!S.styles) { try { S.styles = (await api("GET", "/api/styles")).styles; } catch { S.styles = null; return; } }
+  S.styleKey = ""; renderStyles();
+}
+function styleStateText(a) {
+  if (!a.style) return "";
+  return (STYLE_STATE[a.status] || a.status) + (a.status === "szól" && a.station ? " · " + a.station.name : "");
+}
+function renderStyles() {
+  if (!$("#styleFeatured") || !S.styles || !S.status) return;
+  const a = S.status.style || {}, r = S.status.radio || {};
+  const key = JSON.stringify([a.style, a.status, a.station && a.station.url, a.error, r.override]);
+  if (key === S.styleKey) return;  // ne rajzoljuk újra fölöslegesen (az animáció ne ugráljon)
+  S.styleKey = key;
+  const auto = !a.style && !r.override;
+  const eq = '<i class="eqb"><b></b><b></b><b></b></i>';
+  $("#styleFeatured").innerHTML =
+    `<button class="spad ${auto ? "on" : ""}" data-act="auto" style="--c:var(--ok)"><span class="sn">Automata</span><span class="ss">${auto ? "napszak szerint szól" : "vissza a napszakhoz"}</span>${eq}</button>` +
+    S.styles.filter((x) => x.featured).map((x) => {
+      const on = a.style === x.id;
+      return `<button class="spad ${on ? "on" : ""}" data-style="${esc(x.id)}" style="--c:${STYLE_COLORS[x.id] || "var(--accent)"}">
+        <span class="sn">${esc(x.name)}</span><span class="ss">${on ? esc(styleStateText(a)) : "választás"}</span>${eq}</button>`;
+    }).join("");
+  $("#styleMore").innerHTML = S.styles.filter((x) => !x.featured)
+    .map((x) => `<button class="chip ${a.style === x.id ? "on" : ""}" data-style="${esc(x.id)}">${esc(x.name)}</button>`).join("");
+  $("#styleState").textContent = a.style ? `${a.name}: ${styleStateText(a)}${a.error ? " · " + a.error : ""}` : "napszak szerinti automata";
+}
+function styleDeckHTML(sty) {
+  if (!S.styleSt || S.styleSt.id !== sty.style) {
+    S.styleSt = { id: sty.style, stations: null };
+    api("GET", "/api/styles/" + encodeURIComponent(sty.style))
+      .then((x) => { if (S.styleSt.id === x.id) { S.styleSt.stations = x.stations; renderOverviewLive(); } })
+      .catch((e) => { if (S.styleSt.id === sty.style) { S.styleSt.stations = []; S.styleSt.error = e.message; renderOverviewLive(); } });
+  }
+  const list = S.styleSt.stations, failed = new Set(sty.failed || []);
+  if (!list) return '<div class="empty">Állomások betöltése</div>';
+  if (!list.length) return `<div class="empty">${esc(S.styleSt.error || "Ehhez a stílushoz most nincs állomás")}</div>`;
+  return list.map((s) => {
+    const cur = sty.station && sty.station.url === s.url, bad = failed.has(s.url);
+    const info = cur ? STYLE_STATE[sty.status] || "adásban" : bad ? "nem szólt" : [s.country, s.bitrate ? s.bitrate + " kbit/s" : ""].filter(Boolean).join(" · ") || "készen";
+    return `<button class="pad ${cur ? "pad-live" : ""}" data-style-station="${esc(s.url)}" title="${esc(s.url)}">
+      <span class="pn">${esc(s.name)}</span>
+      <span class="ps"><span class="led ${cur ? "ok" : bad ? "bad" : ""}" style="width:7px;height:7px"></span>${esc(info)}</span></button>`;
+  }).join("");
+}
 function kindLabel(k) { return { hourly: "óránkénti", now: "azonnali", "dry-run": "próba" }[k] || k; }
 document.addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-act],[data-play]"); if (!b) return;
+  const b = e.target.closest("[data-act],[data-play],[data-style],[data-style-station]"); if (!b) return;
+  const applyStyle = (res) => { if (S.status) { S.status.style = res; renderHeader(); renderOverviewLive(); } };
   try {
+    if (b.dataset.style) {
+      applyStyle(await api("POST", "/api/style", { style: b.dataset.style }));
+      return toast("Stílus: " + (b.querySelector(".sn") || b).textContent.trim());
+    }
+    if (b.dataset.styleStation) {
+      return applyStyle(await api("POST", "/api/style", { style: S.status.style.style, station: b.dataset.styleStation }));
+    }
     if (b.dataset.play) { await api("POST", "/api/control", { override: b.dataset.play }); toast("Kézi állomás beállítva"); }
     const a = b.dataset.act;
     if (a === "newsnow") startJob("/api/news/now");
     if (a === "dry") startJob("/api/news/dry-run", () => { if (S.page === "hirek") renderPage(); });
     if (a === "skipnews") { await api("POST", "/api/control", { skip_news: true }); toast("Hírblokk leállítva"); }
-    if (a === "auto") { await api("POST", "/api/control", { override: "" }); toast("Vissza automatára"); }
+    if (a === "auto") {
+      await api("POST", "/api/control", { override: "" });
+      if (S.status && S.status.style) applyStyle({ ...S.status.style, style: "", name: "", station: null, status: "ki" });
+      toast("Vissza automatára");
+    }
+    if (a === "nextst" && S.status && S.status.style && S.status.style.style) {
+      applyStyle(await api("POST", "/api/style/next")); return toast("Következő állomás");
+    }
     if (a === "nextst") {
       const r = S.status.radio || {}, list = (r.stations || []).filter((s) => s.ready);
       if (!list.length) return toast("Nincs másik szóló állomás ebben a napszakban", "err");

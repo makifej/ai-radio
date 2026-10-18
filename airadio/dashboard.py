@@ -34,7 +34,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import config as config_mod
-from . import history, news, stations, tomlwrite, tts
+from . import history, news, relay as relay_mod, stations, styles as styles_mod, tomlwrite, tts
 
 log = logging.getLogger(__name__)
 
@@ -217,6 +217,12 @@ class Dashboard:
         self._control_lock = threading.Lock()
         self._mixer_lock = threading.Lock()
         self.telnet_port = int(os.environ.get("AIRADIO_TELNET_PORT", "1234"))
+        # A stílus-továbbító a Liquidsoap belső harbor-portjára küld (Dockerben is 8005).
+        self.relay = relay_mod.Relay(port=int(os.environ.get("LIVE_PORT", "8005")),
+                                     password=os.environ.get("LIVE_PASSWORD", ""))
+        self._catalog: styles_mod.Catalog | None = None
+        self._style_lock = threading.Lock()
+        self._style_token = 0
 
     # beállítás
 
@@ -294,6 +300,7 @@ class Dashboard:
             "dayparts": [
                 {"name": d.name, "start": d.start, "stop": d.stop, "host": d.host} for d in cfg.dayparts
             ],
+            "style": self.relay.state(),
             "model": cfg.model,
             "api_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
             "jobs": [self._job_summary(j) for j in self.jobs.recent()[:5]],
@@ -332,8 +339,11 @@ class Dashboard:
         except (FileNotFoundError, json.JSONDecodeError):
             return {"override": "", "skip_news": 0}
 
-    def control(self, body: dict) -> dict:
+    def control(self, body: dict, stop_style: bool = True) -> dict:
+        """Kézi állomás vagy automata választása leállítja a stílust is."""
         cfg = self.cfg()
+        if "override" in body and stop_style:
+            self._stop_style(cfg)
         with self._control_lock:
             ctl = self._read_control(cfg)
             if "override" in body:
@@ -346,6 +356,101 @@ class Dashboard:
             tmp.write_text(json.dumps({"override": ctl["override"], "skip_news": ctl["skip_news"]}))
             tmp.replace(path)
         return ctl
+
+    # stílusok
+
+    @property
+    def catalog(self) -> styles_mod.Catalog:
+        if self._catalog is None:
+            self._catalog = styles_mod.Catalog(self.cfg().state_dir / "styles.json")
+        return self._catalog
+
+    def styles(self) -> dict:
+        return {
+            "styles": [{"id": s.id, "name": s.name, "featured": s.featured} for s in self.catalog.styles],
+            "active": self.relay.state(),
+        }
+
+    def style_stations(self, style_id: str, refresh: bool = False) -> dict:
+        try:
+            found = self.catalog.stations(style_id, refresh=refresh)
+        except KeyError:
+            raise ApiError(404, "Nincs ilyen stílus") from None
+        except ConnectionError as e:
+            raise ApiError(502, f"A rádiókatalógus most nem érhető el: {e}") from None
+        return {"id": style_id, "stations": found, "active": self.relay.state()}
+
+    def _save_style(self, cfg: config_mod.Config, style_id: str, station: str) -> None:
+        path = cfg.data_dir / "style.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"style": style_id, "station": station}))
+        tmp.replace(path)
+
+    def _stop_style(self, cfg: config_mod.Config) -> None:
+        with self._style_lock:
+            self._style_token += 1
+        if self.relay.state()["style"]:
+            self.relay.stop()
+        if (cfg.data_dir / "style.json").exists():
+            self._save_style(cfg, "", "")
+
+    def set_style(self, body: dict) -> dict:
+        cfg = self.cfg()
+        style_id = str(body.get("style") or "")
+        station = str(body.get("station") or "")
+        if not style_id:
+            self._stop_style(cfg)
+            return self.relay.state()
+        style = styles_mod.by_id(style_id, self.catalog.styles)
+        if style is None:
+            raise ApiError(404, "Nincs ilyen stílus")
+        if not self.relay.password:
+            raise ApiError(409, "A LIVE_PASSWORD nincs beállítva, stílus nem indítható")
+        self._save_style(cfg, style_id, station)
+        self.control({"override": ""}, stop_style=False)  # a stílus a kézi állomást is felváltja
+        with self._style_lock:
+            self._style_token += 1
+            token = self._style_token
+        if self.relay.state()["style"] != style_id:
+            self.relay.set_status(style=style_id, name=style.name, status="keresés", error="", title="", station=None)
+        threading.Thread(target=self._start_style, args=(style, station, token), daemon=True).start()
+        return self.relay.state()
+
+    def _start_style(self, style: styles_mod.Style, station: str, token: int) -> None:
+        try:
+            found = self.catalog.stations(style.id)
+        except ConnectionError as e:
+            found, error = [], f"A rádiókatalógus most nem érhető el: {e}"
+        else:
+            error = "Ehhez a stílushoz nem találtam állomást"
+        with self._style_lock:
+            if token != self._style_token:
+                return  # közben másik stílust választottak
+            if not found:
+                # ne szóljon tovább az előző stílus, amíg ez hibát jelez
+                self.relay.stop()
+                self.relay.set_status(style=style.id, name=style.name, status="hiba", error=error)
+                return
+            self.relay.play(style.id, style.name, found, station)
+
+    def next_style_station(self) -> dict:
+        if not self.relay.state()["style"]:
+            raise ApiError(409, "Nincs kiválasztott stílus")
+        self.relay.next()
+        return self.relay.state()
+
+    def resume_style(self) -> None:
+        """Induláskor a legutóbb kiválasztott stílus folytatása."""
+        try:
+            saved = json.loads((self.cfg().data_dir / "style.json").read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return
+        if saved.get("style"):
+            try:
+                self.set_style(saved)
+            except ApiError as e:
+                log.warning("A mentett stílus nem indult el: %s", e)
 
     def _cli(self, *args: str) -> list[str]:
         return [sys.executable, "-m", "airadio.cli", "--config", str(self.config_path), *args]
@@ -722,6 +827,14 @@ def make_handler(app: Dashboard, password: str):
                 return self._json(app.cart(self._body()))
             if method == "POST" and path == "/api/control":
                 return self._json(app.control(self._body()))
+            if method == "GET" and path == "/api/styles":
+                return self._json(app.styles())
+            if method == "GET" and match(r"/api/styles/([a-z0-9]+)"):
+                return self._json(app.style_stations(m.group(1), refresh=q.get("refresh") == "1"))
+            if method == "POST" and path == "/api/style":
+                return self._json(app.set_style(self._body()))
+            if method == "POST" and path == "/api/style/next":
+                return self._json(app.next_style_station())
             if method == "GET" and path == "/api/stations/search":
                 query = config_mod.StationSearch(tag=q.get("tag", ""), countrycode=q.get("country", "").upper())
                 found = stations.search(query, limit=min(int(q.get("limit", 30)), 100), name=q.get("name", ""))
@@ -798,4 +911,5 @@ def serve(config_path: Path, host: str, port: int) -> None:
     server = ThreadingHTTPServer((host, port), make_handler(app, password))
     server.daemon_threads = True
     log.info("Irányítópult: http://%s:%d%s", host, port, " (jelszóval)" if password else "")
+    app.resume_style()
     server.serve_forever()
